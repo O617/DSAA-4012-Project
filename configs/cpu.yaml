@@ -1,0 +1,12 @@
+experiment: cpu_baseline
+extends: baseline.yaml
+runtime:
+  device: cpu
+  dtype: float32
+  attention: sdpa
+workload:
+  context_lengths: [128, 512, 2048, 4096]
+  batch_sizes: [1, 2, 4, 8, 16]
+output:
+  path: results/raw/cpu_baseline.jsonl
+

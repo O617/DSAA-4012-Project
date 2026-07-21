@@ -1,29 +1,175 @@
 # DSAA4012 Final Project
 
-Serving-optimization study of `HuggingFaceTB/SmolLM2-360M-Instruct` on CPU and NVIDIA RTX 4090.
+Serving-optimization study of `HuggingFaceTB/SmolLM2-360M-Instruct` on a fixed
+CPU platform and NVIDIA RTX 6000 Ada Generation. The benchmark separates
+prefill from decode and records TTFT, TPOT, aggregate decode TPS, latency
+percentiles, peak memory, and quantization quality.
 
-The project studies how workload shape and serving implementation affect:
+The experiment design and acceptance criteria are in
+[PROJECT_PLAN.md](PROJECT_PLAN.md). The raw-result fields and timing boundaries
+are documented in [docs/RESULT_SCHEMA.md](docs/RESULT_SCHEMA.md).
 
-- time to first token (TTFT),
-- time per output token (TPOT),
-- aggregate output-token throughput (TPS),
-- peak memory,
-- and model quality after quantization.
+## Repository status
 
-The detailed project specification, experiment stages, measurement protocol, and acceptance criteria are maintained in [PROJECT_PLAN.md](PROJECT_PLAN.md).
+The runnable benchmark foundation is implemented. No performance numbers are
+included yet: hardware runs, backend verification, and interpretation must be
+performed on the target CPU and RTX 6000 Ada machines.
 
-## Status
+## 1. Transfer and install
 
-Planning and environment validation.
+Use Python 3.10 or newer. On each target machine, copy or clone this repository,
+then create a fresh environment:
+
+```bash
+cd DSAA4012_Final_Project
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e '.[dev]'
+```
+
+For quantization and task accuracy:
+
+```bash
+python -m pip install -e '.[quantization,quality]'
+```
+
+Install PyTorch from the official selector first if the target machine requires
+a CUDA-specific wheel. Record the resulting wheel, CUDA, and driver versions.
+
+The model revision is pinned in `configs/baseline.yaml`; all derived
+configurations inherit it. Model weights and datasets download into the normal
+external caches and are not committed.
+
+## 2. Validate the environment
+
+Record hardware/software metadata:
+
+```bash
+python scripts/inspect_hardware.py --output results/hardware.json
+```
+
+Run a deterministic model smoke test on CPU:
+
+```bash
+python scripts/smoke_test.py --config configs/cpu.yaml
+```
+
+Run it on the RTX 6000 Ada:
+
+```bash
+python scripts/smoke_test.py --config configs/gpu_rtx6000_ada.yaml
+```
+
+The smoke test checks the planned layer, hidden, MLP, Q-head, KV-head, and
+maximum-context metadata. A mismatch exits nonzero and must be investigated.
+
+## 3. Run benchmarks
+
+Every script accepts repeated `--set section.key=value` overrides and `--dry-run`.
+Use a tiny run first:
+
+```bash
+python scripts/run_baseline_grid.py \
+  --config configs/gpu_rtx6000_ada.yaml \
+  --set 'workload.context_lengths=[128]' \
+  --set 'workload.batch_sizes=[1]' \
+  --set workload.warmups=1 \
+  --set workload.repetitions=2 \
+  --set output.path=results/raw/gpu_tiny.jsonl
+```
+
+Then run the CPU and GPU baseline grids:
+
+```bash
+python scripts/run_baseline_grid.py --config configs/cpu.yaml
+python scripts/run_baseline_grid.py --config configs/gpu_rtx6000_ada.yaml
+```
+
+Run the serving interventions on each desired device by overriding the runtime
+and output path:
+
+```bash
+python scripts/run_operator_study.py \
+  --set runtime.device=cuda --set runtime.dtype=bfloat16 \
+  --set output.path=results/raw/gpu_operator.jsonl
+
+python scripts/run_cache_study.py \
+  --set runtime.device=cuda --set runtime.dtype=bfloat16 \
+  --set output.path=results/raw/gpu_cache.jsonl
+
+python scripts/run_quantization_study.py \
+  --set runtime.device=cuda --set runtime.dtype=bfloat16 \
+  --set output.path=results/raw/gpu_quantization.jsonl
+```
+
+For CPU, use `runtime.device=cpu`, `runtime.dtype=float32`, and distinct output
+paths. Unsupported attention/quantization configurations and OOM boundaries are
+written to the JSONL file with their error type. Successful repetitions resume
+without duplication when a command is restarted.
+
+The manual greedy loop always produces the requested number of tokens even if
+EOS is selected. Tokenization, prompt construction, and terminal output are
+outside the measured region. CUDA is synchronized at each token boundary.
+
+## 4. Quality evaluation
+
+Perplexity on WikiText-2:
+
+```bash
+python scripts/evaluate_quality.py --config configs/cpu.yaml \
+  --metric perplexity --quantization none --max-samples 200
+python scripts/evaluate_quality.py --config configs/cpu.yaml \
+  --metric perplexity --quantization dynamic_w8a8 --max-samples 200
+```
+
+HellaSwag and ARC-Easy through lm-evaluation-harness:
+
+```bash
+python scripts/evaluate_quality.py --config configs/cpu.yaml \
+  --metric tasks --tasks hellaswag arc_easy --quantization none
+```
+
+Use `--limit` only for a smoke test. Headline quality runs should use complete
+tasks or a frozen, seeded subset whose size and uncertainty are reported.
+
+## 5. Aggregate and plot
+
+```bash
+python scripts/aggregate_results.py results/raw/gpu_rtx6000_ada_baseline.jsonl \
+  --output results/processed/gpu_baseline.csv
+
+python scripts/make_plots.py \
+  results/raw/cpu_baseline.jsonl \
+  results/raw/gpu_rtx6000_ada_baseline.jsonl \
+  --output-dir results/figures --metric tps
+```
+
+Aggregation reports p50, p95, and p99 across individual repetitions. Plotting
+generates context-by-batch heatmaps and a TPOT-throughput frontier directly from
+raw JSONL files.
+
+## 6. Tests
+
+The unit tests do not download a model:
+
+```bash
+python -m pytest
+python -m ruff check src scripts tests
+```
+
+## Experimental cautions
+
+- CPU and GPU results are independent hardware lines, not a direct fairness comparison.
+- Peak CPU RSS is sampled in-process; use a fresh process for headline memory points.
+- Verify FlashAttention/TorchAO execution with profiler traces before attributing speedups.
+- `dynamic_w8a8` uses PyTorch dynamic INT8 Linear on CPU and TorchAO on accelerator paths.
+- Keep slowdowns, unsupported kernels, and fallback behavior as experimental results.
+- Run 100–200 repetitions only for selected headline configurations after the broad grid is stable.
 
 ## Team
 
 - Hanxiao
 - Haiyang Peng
 
-## Course
-
 DSAA4012 Machine Learning Systems, Summer 2026.
-
-# DSAA-4012-Project
-# DSAA-4012-Project

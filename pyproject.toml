@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mlsys360"
+version = "0.1.0"
+description = "Reproducible serving benchmarks for SmolLM2-360M-Instruct"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = [
+  "accelerate>=0.34,<2",
+  "datasets>=2.20,<5",
+  "matplotlib>=3.8,<4",
+  "numpy>=1.26,<3",
+  "pandas>=2.2,<3",
+  "psutil>=5.9,<8",
+  "PyYAML>=6.0,<7",
+  "seaborn>=0.13,<1",
+  "torch>=2.4,<3",
+  "transformers>=4.46,<5",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9", "ruff>=0.8,<1"]
+quantization = ["torchao>=0.8,<1"]
+quality = ["lm-eval>=0.4.7,<1"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+

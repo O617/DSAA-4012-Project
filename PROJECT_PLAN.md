@@ -35,13 +35,13 @@ Relevant model properties to record and verify in the implementation:
 The main study has two independent hardware lines:
 
 1. One fixed CPU platform.
-2. One NVIDIA RTX 4090 GPU platform.
+2. One NVIDIA RTX 6000 Ada Generation GPU platform with 48GB of device memory.
 
 All comparisons within a hardware line must run on the same machine and in a controlled environment. CPU and GPU absolute numbers are not treated as a direct fairness comparison; the project compares scaling behavior, bottleneck transitions, and normalized optimization effects on each platform.
 
 ### 1.5 Primary systems question
 
-> How do batch size and context length reshape the TTFT-TPOT-throughput frontier of SmolLM2-360M-Instruct on CPU and RTX 4090, and when do KV caching, attention implementation, and dynamic W8A8 quantization materially shift that frontier?
+> How do batch size and context length reshape the TTFT-TPOT-throughput frontier of SmolLM2-360M-Instruct on CPU and RTX 6000 Ada, and when do KV caching, attention implementation, and dynamic W8A8 quantization materially shift that frontier?
 
 ### 1.6 Intended headline result
 
@@ -60,7 +60,7 @@ It will then show which serving choices move the frontier in each region rather 
 
 ### 2.1 Core work that must be completed
 
-- Reproducibly load and run SmolLM2-360M-Instruct on CPU and RTX 4090.
+- Reproducibly load and run SmolLM2-360M-Instruct on CPU and RTX 6000 Ada.
 - Implement a deterministic generation benchmark with token-level timing.
 - Measure context-length and batch-size scaling on both hardware lines.
 - Report TTFT, TPOT, aggregate TPS, p50/p95/p99 latency, and peak memory.
@@ -80,7 +80,7 @@ These are included only after the core result is stable and reproducible:
 - DynamicCache versus StaticCache plus compiled decoding.
 - FlashAttention-2 if the installed stack supports it reliably.
 - Context length 8192.
-- Batch size 32 or above.
+- Batch sizes above 128 at memory-feasible context lengths, after the required RTX 6000 Ada high-batch sweep is complete.
 - A minimal streaming HTTP endpoint for end-to-end TTFT.
 - Hardware-counter or profiler evidence for memory/compute-bound claims.
 - A second CPU runtime such as ONNX Runtime or llama.cpp.
@@ -115,7 +115,7 @@ The model generates one new token per sequence at each step. Decode contributes 
 
 The project starts from the following hypotheses, which must be tested rather than assumed:
 
-1. Small-batch GPU decode may be dominated by memory traffic and dispatch overhead because the 360M model does not saturate an RTX 4090.
+1. Small-batch GPU decode may be dominated by memory traffic and dispatch overhead because the 360M model is unlikely to saturate an RTX 6000 Ada.
 2. Increasing batch size should initially improve GPU utilization and aggregate TPS, but eventually raise TTFT/TPOT and reach a batching knee.
 3. Long contexts should increase TTFT strongly and may make optimized attention operators more valuable.
 4. KV caching should drastically reduce decode recomputation, with its memory cost increasing with batch size and sequence length.
@@ -229,7 +229,7 @@ DSAA4012_Final_Project/
 ├── configs/
 │   ├── baseline.yaml
 │   ├── cpu.yaml
-│   ├── gpu_4090.yaml
+│   ├── gpu_rtx6000_ada.yaml
 │   ├── operator_study.yaml
 │   ├── cache_study.yaml
 │   └── quantization_study.yaml
@@ -296,12 +296,14 @@ Record:
 
 Record:
 
-- RTX 4090 model and 24GB memory availability;
+- exact RTX 6000 Ada model, 48GB memory capacity, ECC state, and available device memory;
 - driver version;
 - CUDA runtime and compiler versions;
 - PyTorch CUDA build;
 - compute capability;
 - BF16 and INT8 kernel availability;
+- configured power limit, application clocks if available, and observed clock behavior;
+- temperature and thermal/power throttling indicators during representative runs;
 - idle memory usage and competing processes.
 
 ### 6.4 Model validation
@@ -417,7 +419,13 @@ Core batch sizes:
 1, 2, 4, 8, 16
 ```
 
-Batch 32 and context 8192 are optional extensions.
+RTX 6000 Ada saturation sweep:
+
+```text
+32, 64, and 128 where memory permits
+```
+
+The GPU sweep is adaptive rather than a full Cartesian product: test increasing batch sizes at each context length until a batching knee, an out-of-memory boundary, or batch 128 is reached. Record skipped configurations and the stopping reason. This higher-batch sweep is required because a 360M model may remain substantially underutilized at batch 16 on RTX 6000 Ada. Batch sizes above 128 and context length 8192 are optional extensions. The CPU is required to run only the shared core grid; higher CPU batch sizes are optional.
 
 ### 8.4 Required analyses
 
@@ -432,6 +440,7 @@ Batch 32 and context 8192 are optional extensions.
 ### 8.5 Acceptance criteria
 
 - The complete core grid runs on both platforms or unsupported points are documented.
+- The GPU saturation sweep reaches a documented batching knee, memory boundary, or batch 128 for every core context length.
 - Results include p50/p95/p99 where required.
 - A batching knee is identified by the frozen rule or explicitly not observed.
 - At least one headline plot can be generated directly from raw results.
@@ -755,7 +764,7 @@ The 12-minute talk should cover:
 Be prepared to defend:
 
 - why SmolLM2-360M-Instruct was selected;
-- why the model remains meaningful on RTX 4090;
+- why the model remains meaningful on RTX 6000 Ada despite its small parameter count;
 - why CPU quantization was included;
 - metric definitions;
 - batching-knee definition;
@@ -944,7 +953,7 @@ Mitigation:
 ### System
 
 - [ ] SmolLM2-360M-Instruct runs on the selected CPU.
-- [ ] SmolLM2-360M-Instruct runs on RTX 4090.
+- [ ] SmolLM2-360M-Instruct runs on RTX 6000 Ada.
 - [ ] Deterministic fixed-work generation is implemented.
 - [ ] The benchmark emits raw token-level timing observations.
 - [ ] Peak CPU and GPU memory are measured.
@@ -983,4 +992,3 @@ Mitigation:
 - [ ] AI-use acknowledgment is complete.
 - [ ] Each member submits a different approximately 800-word paper analysis.
 - [ ] Model, datasets, libraries, and open-source components are cited.
-

@@ -1,0 +1,87 @@
+"""Model/tokenizer loading and checkpoint metadata validation."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+from .quantization import quantize_model
+
+
+@dataclass
+class ModelBundle:
+    model: Any
+    tokenizer: Any
+    device: str
+    dtype: str
+    quantization: dict[str, Any]
+    metadata: dict[str, Any]
+
+
+def resolve_dtype(name: str) -> Any:
+    import torch
+
+    mapping = {
+        "float32": torch.float32,
+        "fp32": torch.float32,
+        "float16": torch.float16,
+        "fp16": torch.float16,
+        "bfloat16": torch.bfloat16,
+        "bf16": torch.bfloat16,
+    }
+    try:
+        return mapping[name.lower()]
+    except KeyError as error:
+        raise ValueError(f"Unsupported dtype: {name}") from error
+
+
+def load_model(config: dict[str, Any], quantization: str = "none") -> ModelBundle:
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    model_cfg = config["model"]
+    runtime = config["runtime"]
+    device = str(runtime["device"])
+    if device.startswith("cuda") and not torch.cuda.is_available():
+        raise RuntimeError("CUDA was requested but torch.cuda.is_available() is false")
+
+    dtype = resolve_dtype(str(runtime.get("dtype", "float32")))
+    attention = str(runtime.get("attention", "sdpa"))
+    common = {
+        "revision": model_cfg.get("revision", "main"),
+        "trust_remote_code": bool(model_cfg.get("trust_remote_code", False)),
+    }
+    tokenizer = AutoTokenizer.from_pretrained(model_cfg["model_id"], **common)
+    if tokenizer.pad_token_id is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
+    model = AutoModelForCausalLM.from_pretrained(
+        model_cfg["model_id"],
+        torch_dtype=dtype,
+        attn_implementation=attention,
+        **common,
+    )
+    model.eval().to(device)
+    parameter_count = sum(parameter.numel() for parameter in model.parameters())
+    model, quant_metadata = quantize_model(model, quantization, device)
+    if bool(runtime.get("compile", False)):
+        model = torch.compile(model, mode="reduce-overhead")
+
+    cfg = model.config
+    metadata = {
+        "model_id": model_cfg["model_id"],
+        "requested_revision": common["revision"],
+        "resolved_revision": getattr(cfg, "_commit_hash", None),
+        "architecture": list(getattr(cfg, "architectures", []) or []),
+        "num_hidden_layers": getattr(cfg, "num_hidden_layers", None),
+        "hidden_size": getattr(cfg, "hidden_size", None),
+        "intermediate_size": getattr(cfg, "intermediate_size", None),
+        "num_attention_heads": getattr(cfg, "num_attention_heads", None),
+        "num_key_value_heads": getattr(cfg, "num_key_value_heads", None),
+        "max_position_embeddings": getattr(cfg, "max_position_embeddings", None),
+        "vocab_size": getattr(cfg, "vocab_size", None),
+        "parameter_count": parameter_count,
+        "requested_attention": attention,
+        "resolved_attention": getattr(cfg, "_attn_implementation", None),
+    }
+    return ModelBundle(model, tokenizer, device, str(runtime.get("dtype")), quant_metadata, metadata)

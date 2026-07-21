@@ -1,0 +1,21 @@
+experiment: baseline
+model:
+  model_id: HuggingFaceTB/SmolLM2-360M-Instruct
+  revision: c38281e01d0c0b0c36eac2f5bcb5b51fa2e803fc
+  trust_remote_code: false
+runtime:
+  device: cpu
+  dtype: float32
+  attention: sdpa
+  use_cache: true
+  compile: false
+workload:
+  context_lengths: [128, 512, 2048, 4096]
+  batch_sizes: [1, 2, 4, 8, 16]
+  output_tokens: 64
+  warmups: 2
+  repetitions: 10
+  seed: 4012
+output:
+  path: results/raw/baseline.jsonl
+  resume: true

@@ -1,0 +1,12 @@
+experiment: gpu_rtx6000_ada_baseline
+extends: baseline.yaml
+runtime:
+  device: cuda
+  dtype: bfloat16
+  attention: sdpa
+workload:
+  context_lengths: [128, 512, 2048, 4096]
+  batch_sizes: [1, 2, 4, 8, 16, 32, 64, 128]
+output:
+  path: results/raw/gpu_rtx6000_ada_baseline.jsonl
+

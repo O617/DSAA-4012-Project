@@ -1,0 +1,17 @@
+experiment: quantization_study
+extends: baseline.yaml
+matrix:
+  quantization: [none, dynamic_w8a8, weight_only_w8a16]
+workload:
+  points:
+    - {context_length: 128, batch_size: 1, label: short_single}
+    - {context_length: 2048, batch_size: 1, label: long_single}
+    - {context_length: 512, batch_size: 8, label: medium_batch}
+    - {context_length: 2048, batch_size: 16, label: throughput}
+  output_tokens: 64
+  warmups: 2
+  repetitions: 10
+  seed: 4012
+output:
+  path: results/raw/quantization_study.jsonl
+  resume: true

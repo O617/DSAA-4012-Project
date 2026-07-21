@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environments
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# IDE and OS
+.DS_Store
+.idea/
+.vscode/
+
+# Model and dataset caches
+.cache/
+cache/
+data/
+models/
+checkpoints/
+*.bin
+*.safetensors
+*.gguf
+*.onnx
+*.ort
+
+# Generated experiment outputs
+results/raw/
+results/intermediate/
+logs/
+profiles/
+traces/
+artifacts/
+
+# Generated reports and slides
+build/
+dist/
+output/
+*.aux
+*.log
+*.out
+*.toc
+
+# Keep directory placeholders when added later
+!.gitkeep
+
