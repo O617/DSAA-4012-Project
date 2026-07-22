@@ -9,6 +9,12 @@ The experiment design and acceptance criteria are in
 [PROJECT_PLAN.md](PROJECT_PLAN.md). The raw-result fields and timing boundaries
 are documented in [docs/RESULT_SCHEMA.md](docs/RESULT_SCHEMA.md).
 
+> **Rerun required before final reporting:** the current performance runs
+> materialize full-sequence prefill logits. Follow
+> [docs/CORRECTION_AND_RERUN_CHECKLIST.md](docs/CORRECTION_AND_RERUN_CHECKLIST.md)
+> to correct the benchmark, preserve the diagnostic records, and collect the
+> submission-grade replacement results.
+
 ## Repository status
 
 The runnable benchmark foundation and fixed CPU studies are implemented.
