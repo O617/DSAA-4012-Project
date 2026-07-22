@@ -33,8 +33,9 @@ inter-op thread.
 - `figures/*.png`: TPS heatmaps and TPOT-throughput frontiers generated from
   the curated raw files.
 
-Probe, thread-selection, and smoke-test outputs remain under the ignored
-`results/intermediate/` directory and are not submission results.
+Probe, thread-selection, smoke-test, and plotting-validation outputs are
+archived under `results/intermediate/` for reproducibility. They are diagnostic
+records and are not treated as headline submission results.
 
 ## Current findings
 

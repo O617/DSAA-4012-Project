@@ -1,0 +1,97 @@
+{
+  "config": {
+    "experiment": "cpu_baseline",
+    "model": {
+      "model_id": "/data/main/hanxiao/SmolLM2-360M",
+      "revision": null,
+      "trust_remote_code": false
+    },
+    "output": {
+      "path": "results/raw/thread_scaling_32.jsonl",
+      "resume": true
+    },
+    "runtime": {
+      "attention": "sdpa",
+      "compile": false,
+      "device": "cpu",
+      "dtype": "float32",
+      "num_interop_threads": 1,
+      "num_threads": 32,
+      "use_cache": true
+    },
+    "workload": {
+      "batch_sizes": [
+        1
+      ],
+      "context_lengths": [
+        512
+      ],
+      "output_tokens": 16,
+      "repetitions": 2,
+      "seed": 4012,
+      "warmups": 1
+    }
+  },
+  "created_at": "2026-07-21T10:10:42.603291+00:00",
+  "git": {
+    "dirty": true,
+    "revision": "c5f3da8373b217bf489cf754281c81f0a1af17ae"
+  },
+  "invocations": [
+    {
+      "config": {
+        "experiment": "cpu_baseline",
+        "model": {
+          "model_id": "/data/main/hanxiao/SmolLM2-360M",
+          "revision": null,
+          "trust_remote_code": false
+        },
+        "output": {
+          "path": "results/raw/thread_scaling_32.jsonl",
+          "resume": true
+        },
+        "runtime": {
+          "attention": "sdpa",
+          "compile": false,
+          "device": "cpu",
+          "dtype": "float32",
+          "num_interop_threads": 1,
+          "num_threads": 32,
+          "use_cache": true
+        },
+        "workload": {
+          "batch_sizes": [
+            1
+          ],
+          "context_lengths": [
+            512
+          ],
+          "output_tokens": 16,
+          "repetitions": 2,
+          "seed": 4012,
+          "warmups": 1
+        }
+      },
+      "created_at": "2026-07-21T10:10:42.603291+00:00",
+      "git": {
+        "dirty": true,
+        "revision": "c5f3da8373b217bf489cf754281c81f0a1af17ae"
+      },
+      "software": {
+        "accelerate": "0.27.2",
+        "python": "3.11.14",
+        "torch": "2.10.0",
+        "torchao": null,
+        "transformers": "4.57.3"
+      }
+    }
+  ],
+  "schema_version": 1,
+  "software": {
+    "accelerate": "0.27.2",
+    "python": "3.11.14",
+    "torch": "2.10.0",
+    "torchao": null,
+    "transformers": "4.57.3"
+  }
+}
