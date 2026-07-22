@@ -46,6 +46,7 @@ results/raw/*
 !results/raw/gpu_rtx6000_ada_baseline.jsonl
 !results/raw/gpu_rtx6000_ada_baseline.jsonl.manifest.json
 !results/raw/gpu_rtx6000_ada_quality_hellaswag.jsonl
+!results/raw/gpu_rtx6000_ada_quality_arc_easy.jsonl
 results/intermediate/
 logs/
 profiles/

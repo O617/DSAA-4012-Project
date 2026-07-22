@@ -26,6 +26,8 @@ inter-op thread.
   boundaries, and one adaptive skip.
 - `raw/gpu_rtx6000_ada_quality_hellaswag.jsonl`: full 10,042-example
   HellaSwag validation accuracy using the ModelScope-hosted source file.
+- `raw/gpu_rtx6000_ada_quality_arc_easy.jsonl`: full 2,376-example ARC-Easy
+  test accuracy using the ModelScope-hosted Parquet source.
 - Matching `.manifest.json` files: full configurations and invocation history.
 - `processed/*.csv`: p50/p95/p99 aggregates generated from the raw JSONL files.
 - `figures/*.png`: TPS heatmaps and TPOT-throughput frontiers generated from
@@ -53,7 +55,10 @@ Probe, thread-selection, and smoke-test outputs remain under the ignored
 - GPU OOM was measured at context 2048/batch 128 and context 4096/batch 64.
 - Full HellaSwag accuracy was 42.83%; length-normalized accuracy was 56.88%,
   with standard errors of 0.49 percentage points for both.
+- Full ARC-Easy accuracy was 56.44%; length-normalized accuracy was 49.12%,
+  with standard errors of 1.02 and 1.03 percentage points, respectively.
 
 The default execution sandbox hides `/dev/nvidia*`; sandbox-external checks
 confirmed that the host driver and all eight RTX 6000 Ada GPUs are healthy.
-HellaSwag was recovered through ModelScope. ARC-Easy is not yet included.
+HellaSwag and ARC-Easy were both recovered through ModelScope while retaining
+the lm-evaluation-harness scoring protocols.

@@ -1,0 +1,31 @@
+tag:
+  - multiple_choice
+  - ai2_arc
+task: arc_easy_modelscope
+dataset_path: parquet
+dataset_name: null
+dataset_kwargs:
+  data_files:
+    train: data/modelscope/ai2_arc/ARC-Easy/train-00000-of-00001.parquet
+    validation: data/modelscope/ai2_arc/ARC-Easy/validation-00000-of-00001.parquet
+    test: data/modelscope/ai2_arc/ARC-Easy/test-00000-of-00001.parquet
+output_type: multiple_choice
+training_split: train
+validation_split: validation
+test_split: test
+doc_to_text: "Question: {{question}}\nAnswer:"
+doc_to_target: "{{choices.label.index(answerKey)}}"
+doc_to_choice: "{{choices.text}}"
+should_decontaminate: true
+doc_to_decontamination_query: "Question: {{question}}\nAnswer:"
+metric_list:
+  - metric: acc
+    aggregation: mean
+    higher_is_better: true
+  - metric: acc_norm
+    aggregation: mean
+    higher_is_better: true
+metadata:
+  version: 1.0
+  source: allenai/ai2_arc
+  source_sha256: 4160597d618ae851c7eb04e281574f3f654776216ac6b6641588d64527b47177

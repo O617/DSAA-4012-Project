@@ -13,9 +13,9 @@ are documented in [docs/RESULT_SCHEMA.md](docs/RESULT_SCHEMA.md).
 
 The runnable benchmark foundation and fixed CPU studies are implemented.
 Curated results cover the CPU baseline and interventions, the RTX 6000 Ada GPU
-baseline, WikiText-2 perplexity, and full HellaSwag accuracy. The default tool
-sandbox does not expose `/dev/nvidia*`, but sandbox-external runs verified that
-the host driver and all eight GPUs are healthy. ARC-Easy remains pending.
+baseline, WikiText-2 perplexity, and full HellaSwag and ARC-Easy accuracy. The
+default tool sandbox does not expose `/dev/nvidia*`, but sandbox-external runs
+verified that the host driver and all eight GPUs are healthy.
 
 Headline observations so far:
 
@@ -37,6 +37,8 @@ Headline observations so far:
   TPS for context 4096/batch 32;
 - full HellaSwag validation accuracy was 42.83%, or 56.88% with the standard
   length normalization (10,042 examples; standard error about 0.49 points).
+- full ARC-Easy test accuracy was 56.44%, or 49.12% with the standard length
+  normalization (2,376 examples; standard error about 1.02 points).
 
 See [results/README.md](results/README.md) for the curated artifacts.
 
@@ -195,7 +197,20 @@ python scripts/evaluate_quality.py --config configs/gpu_rtx6000_ada.yaml \
   --eval-batch-size 32
 ```
 
-The expected validation-file SHA-256 is recorded in the task configuration.
+ARC-Easy is available directly as Parquet files from ModelScope. The local
+configuration preserves the built-in lm-evaluation-harness prompt, target
+mapping, and multiple-choice metrics:
+
+```bash
+MODELSCOPE_CACHE=data/modelscope/cache modelscope download \
+  --dataset allenai/ai2_arc --local_dir data/modelscope/ai2_arc
+python scripts/evaluate_quality.py --config configs/gpu_rtx6000_ada.yaml \
+  --metric tasks --tasks configs/lm_eval/arc_easy_modelscope.yaml \
+  --eval-batch-size 32
+```
+
+The expected HellaSwag validation and ARC-Easy test-file SHA-256 values are
+recorded in their task configurations.
 
 Use `--limit` only for a smoke test. Headline quality runs should use complete
 tasks or a frozen, seeded subset whose size and uncertainty are reported.
