@@ -20,6 +20,8 @@ class DecodeResult:
     token_timestamps: list[float]
     token_intervals: list[float]
     generated_token_ids: list[list[int]]
+    prefill_logits_shape: list[int]
+    max_logits_positions: int
     memory: dict[str, int | None]
 
     def as_dict(self) -> dict[str, Any]:
@@ -33,12 +35,37 @@ class DecodeResult:
             "token_timestamps": self.token_timestamps,
             "token_intervals": self.token_intervals,
             "generated_token_ids": self.generated_token_ids,
+            "prefill_logits_shape": self.prefill_logits_shape,
+            "max_logits_positions": self.max_logits_positions,
             **self.memory,
         }
 
 
 def _next_token(logits: Any) -> Any:
     return logits[:, -1, :].argmax(dim=-1, keepdim=True)
+
+
+def _forward_last_logits(model: Any, **kwargs: Any) -> Any:
+    """Run one model forward while materializing only the final logit position."""
+    try:
+        return model(**kwargs, logits_to_keep=1)
+    except TypeError as error:
+        if "logits_to_keep" in str(error):
+            raise RuntimeError(
+                "The benchmark model must support logits_to_keep=1; add a "
+                "model-specific last-logit adapter before benchmarking this architecture"
+            ) from error
+        raise
+
+
+def _logits_shape(logits: Any, batch_size: int) -> list[int]:
+    shape = [int(value) for value in logits.shape]
+    if len(shape) != 3 or shape[0] != batch_size or shape[1] != 1:
+        raise RuntimeError(
+            "Benchmark forwards must return [batch, 1, vocabulary] logits; "
+            f"received {shape}"
+        )
+    return shape
 
 
 def fixed_work_decode(
@@ -67,7 +94,10 @@ def fixed_work_decode(
 
     with RSSMonitor() as rss_monitor, torch.inference_mode():
         start = timestamp(device)
-        outputs = model(input_ids=input_ids, attention_mask=attention_mask, use_cache=use_cache)
+        outputs = _forward_last_logits(
+            model, input_ids=input_ids, attention_mask=attention_mask, use_cache=use_cache
+        )
+        prefill_logits_shape = _logits_shape(outputs.logits, batch_size)
         next_token = _next_token(outputs.logits)
         generated.append(next_token)
         token_times.append(timestamp(device))
@@ -78,7 +108,8 @@ def fixed_work_decode(
 
         for _ in range(output_tokens - 1):
             if use_cache:
-                outputs = model(
+                outputs = _forward_last_logits(
+                    model,
                     input_ids=next_token,
                     attention_mask=full_mask,
                     past_key_values=past_key_values,
@@ -86,7 +117,10 @@ def fixed_work_decode(
                 )
                 past_key_values = outputs.past_key_values
             else:
-                outputs = model(input_ids=full_ids, attention_mask=full_mask, use_cache=False)
+                outputs = _forward_last_logits(
+                    model, input_ids=full_ids, attention_mask=full_mask, use_cache=False
+                )
+            _logits_shape(outputs.logits, batch_size)
             next_token = _next_token(outputs.logits)
             generated.append(next_token)
             token_times.append(timestamp(device))
@@ -110,6 +144,7 @@ def fixed_work_decode(
         token_timestamps=[value - start for value in token_times],
         token_intervals=intervals,
         generated_token_ids=generated_ids,
+        prefill_logits_shape=prefill_logits_shape,
+        max_logits_positions=1,
         memory=memory,
     )
-

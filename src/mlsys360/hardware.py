@@ -52,6 +52,13 @@ def inspect_hardware() -> dict[str, Any]:
                 "--format=csv,noheader,nounits",
             ]
         ),
+        "nvidia_compute_apps": _command(
+            [
+                "nvidia-smi",
+                "--query-compute-apps=gpu_uuid,pid,process_name,used_memory",
+                "--format=csv,noheader,nounits",
+            ]
+        ),
         "cuda_available": torch.cuda.is_available(),
         "gpus": [],
     }

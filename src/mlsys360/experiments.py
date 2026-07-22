@@ -16,14 +16,14 @@ from typing import Any, Iterator
 
 from .config import validate_config
 from .decode import fixed_work_decode
-from .model import load_model
+from .model import load_model, local_model_artifact_hashes
 from .prompts import exact_length_prompt
 from .results import IDENTITY_FIELDS, JsonlStore, aggregate_rows, batching_knee, result_identity
 
 
 def _software_versions() -> dict[str, str | None]:
     versions: dict[str, str | None] = {"python": platform.python_version()}
-    for package in ("torch", "transformers", "accelerate", "torchao"):
+    for package in ("torch", "transformers", "accelerate", "datasets", "lm_eval", "torchao"):
         try:
             versions[package] = importlib.metadata.version(package)
         except importlib.metadata.PackageNotFoundError:
@@ -52,6 +52,7 @@ def _write_manifest(path: Path, config: dict[str, Any]) -> None:
         "config": config,
         "software": _software_versions(),
         "git": _git_state(),
+        "model_artifacts": local_model_artifact_hashes(str(config["model"]["model_id"])),
     }
     invocations: list[dict[str, Any]] = []
     if path.exists():
@@ -126,7 +127,7 @@ def _base_row(
     runtime = config["runtime"]
     model = config["model"]
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "experiment": config.get("experiment", "benchmark"),
         "hardware_id": _hardware_id(str(runtime["device"])),
@@ -148,6 +149,7 @@ def _base_row(
         "repetition": repetition,
         "seed": int(config["workload"].get("seed", 4012)),
         "software": _software_versions(),
+        "logits_to_keep": 1,
     }
 
 

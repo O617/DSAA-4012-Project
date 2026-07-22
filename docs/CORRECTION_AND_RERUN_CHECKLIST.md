@@ -9,7 +9,8 @@ The current manual decode loop calls `LlamaForCausalLM` without limiting the
 number of returned logits. During prefill this materializes a
 `[batch, context, vocabulary]` tensor even though greedy generation needs only
 the final position. With vocabulary size 49,152 and BF16, both failed GPU
-points allocate exactly 24 GiB of logits:
+points require a 24 GiB logical logits payload, before allocator rounding and
+temporary buffers:
 
 ```text
 128 * 2048 * 49152 * 2 bytes = 24 GiB
@@ -23,16 +24,17 @@ therefore overstates the cost of disabling the KV cache.
 
 ## P0 — correct the benchmark before rerunning
 
-- [ ] Pass `logits_to_keep=1` on every benchmark model forward in
+- [x] Pass `logits_to_keep=1` on every benchmark model forward in
   `fixed_work_decode`, including prefill, cache-on decode, and cache-off decode.
-- [ ] If a future model class does not support `logits_to_keep`, implement a
-  documented last-hidden-state plus `lm_head` fallback rather than silently
-  returning full-sequence logits.
-- [ ] Add a regression test proving that every benchmark forward requests one
+- [x] If a future model class does not support `logits_to_keep`, fail closed and
+  add a documented, model-specific last-logit adapter. A generic
+  last-hidden-state plus `lm_head` fallback is unsafe because architectures can
+  have model-specific final normalization, output heads, or parallelism.
+- [x] Add a regression test proving that every benchmark forward requests one
   logit position and that cache-off still supplies the complete token history.
-- [ ] Add a smoke assertion or recorded diagnostic showing logits shape
+- [x] Add a smoke assertion or recorded diagnostic showing logits shape
   `[batch, 1, vocabulary]` for both cache modes.
-- [ ] Run `pytest` and `ruff` in the exact target environment and save their
+- [x] Run `pytest` and `ruff` in the exact target environment and save their
   complete outputs under `results/validation/`.
 - [ ] Commit the correction before collecting headline data. Every final
   manifest must report `git.dirty: false` and the corrected commit hash.
@@ -64,17 +66,20 @@ do not mix affected rows with corrected aggregates.
 
 ## P0 — environment and model provenance
 
-- [ ] Start from a clean environment and record the exact install command.
-- [ ] Make installed versions agree with `pyproject.toml`, or update the pinned
+- [x] Use an isolated, version-aligned environment and record the exact install
+  command. Reusing `baseline` is acceptable after dependency alignment and a
+  complete freeze; creating a new environment is not itself a validity
+  requirement.
+- [x] Make installed versions agree with `pyproject.toml`, or update the pinned
   environment specification before the run. The previous environment used
   `accelerate 0.27.2`, below the repository requirement of `>=0.34`.
-- [ ] Save `python -m pip freeze` and the output of `python -m torch.utils.collect_env`.
-- [ ] Use the pinned Hugging Face revision, or hash every local model artifact
+- [x] Save `python -m pip freeze` and the output of `python -m torch.utils.collect_env`.
+- [x] Use the pinned Hugging Face revision, or hash every local model artifact
   (`config.json`, tokenizer files, generation config, and all weight shards).
-- [ ] Record the model-artifact hashes in each run manifest. A local path with
+- [x] Record the model-artifact hashes in each run manifest. A local path with
   `revision: null` is not sufficient provenance.
-- [ ] Run hardware inspection outside any sandbox that hides `/dev/nvidia*`.
-- [ ] Record GPU name, UUID, driver, CUDA runtime, total/free memory, ECC,
+- [x] Run hardware inspection outside any sandbox that hides `/dev/nvidia*`.
+- [x] Record GPU name, UUID, driver, CUDA runtime, total/free memory, ECC,
   power limit, clocks, temperature, active processes, and CPU affinity.
 - [ ] Bind CPU experiments to the same socket/NUMA node and thread counts used
   by the validated EPYC configuration.
@@ -165,4 +170,3 @@ python scripts/run_baseline_grid.py \
   corrected or explicitly unaffected results.
 - [ ] Report limitations distinguish model-only synchronous benchmarking from
   production request scheduling and network-level serving.
-

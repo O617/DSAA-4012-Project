@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -34,6 +35,39 @@ def resolve_dtype(name: str) -> Any:
         return mapping[name.lower()]
     except KeyError as error:
         raise ValueError(f"Unsupported dtype: {name}") from error
+
+
+def local_model_artifact_hashes(model_id: str) -> list[dict[str, Any]]:
+    """Hash local inference artifacts required to identify an exact model snapshot."""
+    root = Path(model_id)
+    if not root.is_dir():
+        return []
+    exact_names = {
+        "config.json",
+        "generation_config.json",
+        "merges.txt",
+        "special_tokens_map.json",
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "vocab.json",
+    }
+    artifacts = []
+    for path in sorted(candidate for candidate in root.iterdir() if candidate.is_file()):
+        is_weight = (
+            (path.name.startswith("model") and path.suffix == ".safetensors")
+            or (path.name.startswith("pytorch_model") and path.suffix == ".bin")
+            or path.name in {"model.safetensors.index.json", "pytorch_model.bin.index.json"}
+        )
+        if path.name not in exact_names and not is_weight:
+            continue
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        artifacts.append(
+            {"path": path.name, "size_bytes": path.stat().st_size, "sha256": digest.hexdigest()}
+        )
+    return artifacts
 
 
 def load_model(config: dict[str, Any], quantization: str = "none") -> ModelBundle:
@@ -87,5 +121,6 @@ def load_model(config: dict[str, Any], quantization: str = "none") -> ModelBundl
         "parameter_count": parameter_count,
         "requested_attention": attention,
         "resolved_attention": getattr(cfg, "_attn_implementation", None),
+        "local_artifacts": local_model_artifact_hashes(str(model_cfg["model_id"])),
     }
     return ModelBundle(model, tokenizer, device, str(runtime.get("dtype")), quant_metadata, metadata)
