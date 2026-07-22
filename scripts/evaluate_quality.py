@@ -17,12 +17,19 @@ def main() -> int:
     parser.add_argument("--tasks", nargs="+", default=["hellaswag", "arc_easy"])
     parser.add_argument("--limit", type=int)
     parser.add_argument("--max-samples", type=int, default=200)
+    parser.add_argument(
+        "--text-file",
+        help="Local text file for offline perplexity evaluation; preserves dataset labels",
+    )
     parser.add_argument("--output", default="results/raw/quality.jsonl")
     args = parser.parse_args()
     config = apply_overrides(load_config(args.config), args.set)
     if args.metric == "perplexity":
         result = evaluate_perplexity(
-            config, args.quantization, max_samples=args.max_samples
+            config,
+            args.quantization,
+            max_samples=args.max_samples,
+            text_file=args.text_file,
         )
     else:
         result = evaluate_tasks(config, args.quantization, args.tasks, args.limit)
@@ -37,4 +44,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

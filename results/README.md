@@ -12,11 +12,38 @@ inter-op thread.
   five batch sizes, and ten repetitions.
 - `raw/cpu_epyc9654_operator_eager.jsonl`: 50 eager-attention observations at
   five representative workload points.
+- `raw/cpu_epyc9654_cache_off.jsonl`: 50 repeated observations at five points
+  plus one complete 2048/8 boundary observation. The boundary row is evidence
+  of extreme slowdown, not a p95/p99 estimate.
+- `raw/cpu_epyc9654_quantization_w8a8.jsonl`: 40 observations at four
+  representative points using dynamic INT8 transformer Linear layers with the
+  vocabulary head retained in FP32.
+- `raw/cpu_epyc9654_quality_wikitext2.jsonl`: paired FP32 and W8A8 perplexity
+  results over the same 12,846 scored WikiText-2 tokens, including source-file
+  SHA-256 provenance.
 - Matching `.manifest.json` files: full configurations and invocation history.
 - `processed/*.csv`: p50/p95/p99 aggregates generated from the raw JSONL files.
+- `figures/*.png`: TPS heatmaps and TPOT-throughput frontiers generated from
+  the curated raw files.
 
 Probe, thread-selection, and smoke-test outputs remain under the ignored
 `results/intermediate/` directory and are not submission results.
 
-The GPU line is not included yet because the current execution environment
-could not communicate with the NVIDIA driver.
+## Current findings
+
+- Cache-off median TPOT was 2.50x--23.07x worse at the five repeated points;
+  the single 2048/8 boundary observation was 75.15x worse.
+- Dynamic W8A8 improved median TPS by 1.47x--2.54x, but peak RSS was
+  1.09x--1.56x higher rather than lower.
+- WikiText-2 perplexity increased from 11.27 (FP32) to 44.16 (W8A8). This is a
+  negative quality result and rules out this recipe as a quality-preserving
+  serving optimization for the tested model/backend.
+- A deterministic greedy probe asking why KV caching speeds decoding produced
+  a readable FP32 answer, while W8A8 entered a repeated "question of a
+  question" loop. This qualitative check is consistent with the perplexity
+  regression and is not treated as a standalone accuracy metric.
+
+The GPU line is not included because the current environment could not
+communicate with the NVIDIA driver. HellaSwag and ARC-Easy task runs could not
+retrieve their datasets because Hugging Face TLS connections failed; no task
+accuracy numbers are claimed.

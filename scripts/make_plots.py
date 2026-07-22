@@ -21,6 +21,37 @@ def safe_name(values: tuple[object, ...]) -> str:
     )
 
 
+def identity_title(fields: list[str], values: tuple[object, ...]) -> str:
+    identity = dict(zip(fields, values))
+    first_line = (
+        f"{str(identity['device']).upper()} {identity['dtype']} | "
+        f"attention={identity['attention']} | cache={'on' if identity['use_cache'] else 'off'} | "
+        f"quantization={identity['quantization']}"
+    )
+    hardware = str(identity["hardware_id"]).split("::", maxsplit=1)[0]
+    model = Path(str(identity.get("model_id", "model"))).name
+    second_line = f"{hardware} | {model}"
+    if "num_threads" in identity:
+        second_line += f" | threads={identity['num_threads']}"
+    return f"{first_line}\n{second_line}"
+
+
+def identity_slug(fields: list[str], values: tuple[object, ...]) -> str:
+    identity = dict(zip(fields, values))
+    hardware = str(identity["hardware_id"]).split("::", maxsplit=1)[0]
+    model = Path(str(identity.get("model_id", "model"))).name
+    parts = (
+        hardware,
+        identity["device"],
+        identity["dtype"],
+        identity["attention"],
+        f"cache-{'on' if identity['use_cache'] else 'off'}",
+        identity["quantization"],
+        model,
+    )
+    return safe_name(parts)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("raw", nargs="+", help="One or more benchmark JSONL files")
@@ -36,7 +67,13 @@ def main() -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
     sns.set_theme(style="whitegrid", context="talk")
 
-    optional_fields = ["model_id", "model_revision", "compile"]
+    optional_fields = [
+        "model_id",
+        "model_revision",
+        "compile",
+        "num_threads",
+        "num_interop_threads",
+    ]
     group_fields = [
         "hardware_id",
         "device",
@@ -52,10 +89,10 @@ def main() -> int:
         )
         fig, axis = plt.subplots(figsize=(10, 6))
         sns.heatmap(pivot, annot=True, fmt=".3g", cmap="viridis", ax=axis)
-        axis.set_title(" | ".join(map(str, identity)))
+        axis.set_title(identity_title(group_fields, identity), fontsize=14)
         axis.set_xlabel("Batch size")
         axis.set_ylabel("Context length (tokens)")
-        figure_name = safe_name(identity)
+        figure_name = identity_slug(group_fields, identity)
         fig.tight_layout()
         fig.savefig(output_dir / f"{args.metric}_heatmap_{figure_name}.png", dpi=200)
         plt.close(fig)
@@ -77,9 +114,12 @@ def main() -> int:
         )
         axis.set_xlabel(LABELS["tpot_seconds"])
         axis.set_ylabel(LABELS["tps"])
-        axis.set_title("TPOT-throughput frontier | " + " | ".join(map(str, identity)))
+        axis.set_title(
+            "TPOT-throughput frontier\n" + identity_title(group_fields, identity),
+            fontsize=13,
+        )
         fig.tight_layout()
-        suffix = "" if len(frontier_groups) == 1 else f"_{safe_name(identity)}"
+        suffix = "" if len(frontier_groups) == 1 else f"_{identity_slug(group_fields, identity)}"
         fig.savefig(output_dir / f"tpot_throughput_frontier{suffix}.png", dpi=200)
         plt.close(fig)
     return 0

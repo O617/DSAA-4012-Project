@@ -38,6 +38,11 @@ results/raw/*
 !results/raw/cpu_epyc9654_baseline.jsonl.manifest.json
 !results/raw/cpu_epyc9654_operator_eager.jsonl
 !results/raw/cpu_epyc9654_operator_eager.jsonl.manifest.json
+!results/raw/cpu_epyc9654_cache_off.jsonl
+!results/raw/cpu_epyc9654_cache_off.jsonl.manifest.json
+!results/raw/cpu_epyc9654_quantization_w8a8.jsonl
+!results/raw/cpu_epyc9654_quantization_w8a8.jsonl.manifest.json
+!results/raw/cpu_epyc9654_quality_wikitext2.jsonl
 results/intermediate/
 logs/
 profiles/

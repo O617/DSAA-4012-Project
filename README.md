@@ -11,11 +11,12 @@ are documented in [docs/RESULT_SCHEMA.md](docs/RESULT_SCHEMA.md).
 
 ## Repository status
 
-The runnable benchmark foundation and the fixed CPU baseline are implemented.
-Committed results include 200 baseline observations and 50 eager-attention
-observations from one AMD EPYC 9654 socket. The GPU, cache, quantization, and
-quality stages remain in progress; the current environment could not
-communicate with the NVIDIA driver.
+The runnable benchmark foundation and fixed CPU studies are implemented.
+Curated results cover the baseline, eager attention, cache-off, dynamic W8A8,
+and WikiText-2 perplexity on one AMD EPYC 9654 socket. The GPU line remains
+blocked because the current environment cannot communicate with the NVIDIA
+driver. HellaSwag and ARC-Easy remain blocked by TLS failures while retrieving
+their Hugging Face datasets.
 
 Headline CPU observations so far:
 
@@ -24,6 +25,12 @@ Headline CPU observations so far:
   at context 4096;
 - eager attention at context 4096, batch 4 had 7.95x the TTFT and 5.67x the
   TPOT of SDPA, with 0.18x its aggregate TPS.
+- disabling the KV cache increased median TPOT by 2.50x--23.07x across the five
+  repeated points; the 2048/8 boundary observation was 75.15x slower;
+- CPU dynamic W8A8 improved median aggregate TPS by 1.47x--2.54x at four
+  representative points, but peak RSS increased by 1.09x--1.56x;
+- on the frozen WikiText-2 slice, FP32 perplexity was 11.27 and W8A8
+  perplexity was 44.16, so this quantization recipe is not quality-preserving.
 
 See [results/README.md](results/README.md) for the curated artifacts.
 
@@ -155,6 +162,13 @@ python scripts/evaluate_quality.py --config configs/cpu.yaml \
   --metric perplexity --quantization dynamic_w8a8 --max-samples 200
 ```
 
+If Hugging Face is unavailable, download `wiki.test.raw` once and pass
+`--text-file /path/to/wiki.test.raw`. The evaluator records its path, byte
+size, line count, and SHA-256 in every result. The curated run used the first
+200 raw records (12,846 scored tokens) from a 1,290,590-byte, 4,358-line file
+with SHA-256
+`173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08`.
+
 HellaSwag and ARC-Easy through lm-evaluation-harness:
 
 ```bash
@@ -195,7 +209,8 @@ python -m ruff check src scripts tests
 - CPU and GPU results are independent hardware lines, not a direct fairness comparison.
 - Peak CPU RSS is sampled in-process; use a fresh process for headline memory points.
 - Verify FlashAttention/TorchAO execution with profiler traces before attributing speedups.
-- `dynamic_w8a8` uses PyTorch dynamic INT8 Linear on CPU and TorchAO on accelerator paths.
+- `dynamic_w8a8` uses PyTorch dynamic INT8 Linear on CPU while preserving
+  `lm_head` in FP32, and TorchAO on accelerator paths.
 - Keep slowdowns, unsupported kernels, and fallback behavior as experimental results.
 - Run 100–200 repetitions only for selected headline configurations after the broad grid is stable.
 

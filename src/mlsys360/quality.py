@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import math
+from pathlib import Path
 from typing import Any
 
 from .model import load_model
@@ -40,17 +42,34 @@ def evaluate_perplexity(
     split: str = "test",
     max_samples: int = 200,
     stride: int = 512,
+    text_file: str | Path | None = None,
 ) -> dict[str, Any]:
     import torch
-    from datasets import load_dataset
 
     bundle = load_model(config, quantization=quantization)
-    dataset = load_dataset(dataset_name, dataset_config, split=split)
-    texts = [text for text in dataset["text"][:max_samples] if text.strip()]
+    if max_samples < 1:
+        raise ValueError("max_samples must be positive")
+    source: dict[str, Any]
+    if text_file is None:
+        from datasets import load_dataset
+
+        dataset = load_dataset(dataset_name, dataset_config, split=split)
+        texts = [text for text in dataset["text"][:max_samples] if text.strip()]
+        source = {"type": "huggingface_dataset"}
+    else:
+        path = Path(text_file)
+        content = path.read_bytes()
+        lines = content.decode("utf-8").splitlines()
+        texts = [text for text in lines[:max_samples] if text.strip()]
+        source = {
+            "type": "local_text_file",
+            "path": str(path),
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "size_bytes": len(content),
+            "line_count": len(lines),
+        }
     tokens = bundle.tokenizer("\n\n".join(texts), return_tensors="pt").input_ids.to(bundle.device)
-    max_length = min(
-        int(getattr(bundle.model.config, "max_position_embeddings", 2048)), 2048
-    )
+    max_length = min(int(getattr(bundle.model.config, "max_position_embeddings", 2048)), 2048)
     negative_log_likelihoods = []
     token_count = 0
     for begin, end, target_length, predicted in perplexity_windows(
@@ -75,6 +94,7 @@ def evaluate_perplexity(
         "dataset_config": dataset_config,
         "split": split,
         "max_samples": max_samples,
+        "source": source,
         "quantization": quantization,
         "model": bundle.metadata,
         "quantization_details": bundle.quantization,
