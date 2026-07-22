@@ -12,13 +12,12 @@ are documented in [docs/RESULT_SCHEMA.md](docs/RESULT_SCHEMA.md).
 ## Repository status
 
 The runnable benchmark foundation and fixed CPU studies are implemented.
-Curated results cover the baseline, eager attention, cache-off, dynamic W8A8,
-and WikiText-2 perplexity on one AMD EPYC 9654 socket. The GPU line remains
-blocked because the current environment cannot communicate with the NVIDIA
-driver. HellaSwag and ARC-Easy remain blocked by TLS failures while retrieving
-their Hugging Face datasets.
+Curated results cover the CPU baseline and interventions, the RTX 6000 Ada GPU
+baseline, WikiText-2 perplexity, and full HellaSwag accuracy. The default tool
+sandbox does not expose `/dev/nvidia*`, but sandbox-external runs verified that
+the host driver and all eight GPUs are healthy. ARC-Easy remains pending.
 
-Headline CPU observations so far:
+Headline observations so far:
 
 - no batching knee was observed through batch 16 at contexts 128 and 512;
 - the frozen rule identified batch 16 as the knee at context 2048 and batch 8
@@ -31,6 +30,13 @@ Headline CPU observations so far:
   representative points, but peak RSS increased by 1.09x--1.56x;
 - on the frozen WikiText-2 slice, FP32 perplexity was 11.27 and W8A8
   perplexity was 44.16, so this quantization recipe is not quality-preserving.
+- the GPU baseline produced 290 successful observations; OOM occurred at
+  context 2048/batch 128 and context 4096/batch 64, after which the larger
+  4096/batch 128 point was skipped;
+- median GPU throughput peaked at 2,896 TPS for context 128/batch 128 and 716
+  TPS for context 4096/batch 32;
+- full HellaSwag validation accuracy was 42.83%, or 56.88% with the standard
+  length normalization (10,042 examples; standard error about 0.49 points).
 
 See [results/README.md](results/README.md) for the curated artifacts.
 
@@ -176,6 +182,21 @@ python scripts/evaluate_quality.py --config configs/cpu.yaml \
   --metric tasks --tasks hellaswag arc_easy --quantization none
 ```
 
+When Hugging Face is unavailable, the included ModelScope-backed HellaSwag
+configuration reads a locally downloaded validation file:
+
+```bash
+MODELSCOPE_CACHE=data/modelscope/cache modelscope download \
+  --dataset modelscope/hellaswag --local_dir data/modelscope/hellaswag
+wget -O data/modelscope/hellaswag/hellaswag_val.jsonl \
+  https://modelscope.oss-cn-beijing.aliyuncs.com/open_data/hellaswag/hellaswag_val.jsonl
+python scripts/evaluate_quality.py --config configs/gpu_rtx6000_ada.yaml \
+  --metric tasks --tasks configs/lm_eval/hellaswag_modelscope.yaml \
+  --eval-batch-size 32
+```
+
+The expected validation-file SHA-256 is recorded in the task configuration.
+
 Use `--limit` only for a smoke test. Headline quality runs should use complete
 tasks or a frozen, seeded subset whose size and uncertainty are reported.
 
@@ -207,6 +228,8 @@ python -m ruff check src scripts tests
 ## Experimental cautions
 
 - CPU and GPU results are independent hardware lines, not a direct fairness comparison.
+- GPU commands must run in a context that exposes `/dev/nvidia*`; seeing CUDA
+  libraries alone is insufficient.
 - Peak CPU RSS is sampled in-process; use a fresh process for headline memory points.
 - Verify FlashAttention/TorchAO execution with profiler traces before attributing speedups.
 - `dynamic_w8a8` uses PyTorch dynamic INT8 Linear on CPU while preserving

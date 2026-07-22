@@ -8,6 +8,20 @@ from mlsys360.config import apply_overrides, load_config
 from mlsys360.quality import evaluate_perplexity, evaluate_tasks
 
 
+def evaluation_batch_size(value: str) -> int | str:
+    if value == "auto":
+        return value
+    try:
+        parsed = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(
+            "batch size must be a positive integer or 'auto'"
+        ) from error
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("batch size must be a positive integer or 'auto'")
+    return parsed
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="configs/baseline.yaml")
@@ -16,6 +30,8 @@ def main() -> int:
     parser.add_argument("--metric", choices=("perplexity", "tasks"), default="perplexity")
     parser.add_argument("--tasks", nargs="+", default=["hellaswag", "arc_easy"])
     parser.add_argument("--limit", type=int)
+    parser.add_argument("--eval-batch-size", type=evaluation_batch_size, default=1)
+    parser.add_argument("--log-samples", action="store_true")
     parser.add_argument("--max-samples", type=int, default=200)
     parser.add_argument(
         "--text-file",
@@ -32,7 +48,14 @@ def main() -> int:
             text_file=args.text_file,
         )
     else:
-        result = evaluate_tasks(config, args.quantization, args.tasks, args.limit)
+        result = evaluate_tasks(
+            config,
+            args.quantization,
+            args.tasks,
+            args.limit,
+            batch_size=args.eval_batch_size,
+            log_samples=args.log_samples,
+        )
     result["created_at"] = datetime.now(timezone.utc).isoformat()
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)

@@ -2,7 +2,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from mlsys360.quality import evaluate_perplexity, perplexity_windows
+from mlsys360.quality import evaluate_perplexity, json_safe, perplexity_windows
 
 
 class QualityTests(unittest.TestCase):
@@ -15,6 +15,13 @@ class QualityTests(unittest.TestCase):
     def test_stride_cannot_leave_context_gaps(self):
         with self.assertRaisesRegex(ValueError, "stride must be between"):
             perplexity_windows(sequence_length=100, max_length=32, stride=64)
+
+    def test_json_safe_uses_stable_callable_name(self):
+        value = json_safe({"function": self.test_json_safe_uses_stable_callable_name})
+        self.assertEqual(
+            value["function"],
+            "test_quality.QualityTests.test_json_safe_uses_stable_callable_name",
+        )
 
     @patch("mlsys360.quality.load_model")
     def test_local_text_records_content_provenance(self, load_model):

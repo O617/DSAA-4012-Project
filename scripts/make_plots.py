@@ -87,8 +87,18 @@ def main() -> int:
         pivot = subset.pivot_table(
             index="context_length", columns="batch_size", values=args.metric, aggfunc="median"
         )
-        fig, axis = plt.subplots(figsize=(10, 6))
-        sns.heatmap(pivot, annot=True, fmt=".3g", cmap="viridis", ax=axis)
+        figure_width = 12 if len(pivot.columns) > 6 else 10
+        annotation_size = 10 if len(pivot.columns) > 6 else 12
+        number_format = ".0f" if args.metric == "tps" else ".3g"
+        fig, axis = plt.subplots(figsize=(figure_width, 6))
+        sns.heatmap(
+            pivot,
+            annot=True,
+            fmt=number_format,
+            annot_kws={"fontsize": annotation_size},
+            cmap="viridis",
+            ax=axis,
+        )
         axis.set_title(identity_title(group_fields, identity), fontsize=14)
         axis.set_xlabel("Batch size")
         axis.set_ylabel("Context length (tokens)")
@@ -119,7 +129,7 @@ def main() -> int:
             fontsize=13,
         )
         fig.tight_layout()
-        suffix = "" if len(frontier_groups) == 1 else f"_{identity_slug(group_fields, identity)}"
+        suffix = f"_{identity_slug(group_fields, identity)}"
         fig.savefig(output_dir / f"tpot_throughput_frontier{suffix}.png", dpi=200)
         plt.close(fig)
     return 0

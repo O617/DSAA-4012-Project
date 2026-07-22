@@ -43,6 +43,9 @@ results/raw/*
 !results/raw/cpu_epyc9654_quantization_w8a8.jsonl
 !results/raw/cpu_epyc9654_quantization_w8a8.jsonl.manifest.json
 !results/raw/cpu_epyc9654_quality_wikitext2.jsonl
+!results/raw/gpu_rtx6000_ada_baseline.jsonl
+!results/raw/gpu_rtx6000_ada_baseline.jsonl.manifest.json
+!results/raw/gpu_rtx6000_ada_quality_hellaswag.jsonl
 results/intermediate/
 logs/
 profiles/

@@ -10,6 +10,23 @@ from typing import Any
 from .model import load_model
 
 
+def json_safe(value: Any) -> Any:
+    """Return a deterministic JSON-compatible representation."""
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, dict):
+        return {str(key): json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_safe(item) for item in value]
+    if isinstance(value, set):
+        return [json_safe(item) for item in sorted(value, key=str)]
+    if callable(value):
+        module = getattr(value, "__module__", type(value).__module__)
+        name = getattr(value, "__qualname__", type(value).__qualname__)
+        return f"{module}.{name}"
+    return str(value)
+
+
 def perplexity_windows(
     sequence_length: int, max_length: int, stride: int
 ) -> list[tuple[int, int, int, int]]:
@@ -102,7 +119,12 @@ def evaluate_perplexity(
 
 
 def evaluate_tasks(
-    config: dict[str, Any], quantization: str, tasks: list[str], limit: int | None = None
+    config: dict[str, Any],
+    quantization: str,
+    tasks: list[str],
+    limit: int | None = None,
+    batch_size: int | str = 1,
+    log_samples: bool = False,
 ) -> dict[str, Any]:
     try:
         from lm_eval import evaluator
@@ -111,15 +133,31 @@ def evaluate_tasks(
         raise RuntimeError("Install the 'quality' extra to run task accuracy evaluation") from error
 
     bundle = load_model(config, quantization=quantization)
-    wrapper = HFLM(pretrained=bundle.model, tokenizer=bundle.tokenizer, device=bundle.device)
-    results = evaluator.simple_evaluate(model=wrapper, tasks=tasks, limit=limit, random_seed=4012)
-    return {
+    wrapper = HFLM(
+        pretrained=bundle.model,
+        tokenizer=bundle.tokenizer,
+        device=bundle.device,
+        batch_size=batch_size,
+    )
+    results = evaluator.simple_evaluate(
+        model=wrapper,
+        tasks=tasks,
+        limit=limit,
+        log_samples=log_samples,
+        random_seed=4012,
+    )
+    output = {
         "metric": "task_accuracy",
         "tasks": tasks,
         "limit": limit,
+        "batch_size": batch_size,
         "quantization": quantization,
         "results": results.get("results", {}),
-        "samples": results.get("samples", {}),
+        "task_configs": json_safe(results.get("configs", {})),
+        "task_versions": results.get("versions", {}),
         "model": bundle.metadata,
         "quantization_details": bundle.quantization,
     }
+    if log_samples:
+        output["samples"] = results.get("samples", {})
+    return output

@@ -21,6 +21,11 @@ inter-op thread.
 - `raw/cpu_epyc9654_quality_wikitext2.jsonl`: paired FP32 and W8A8 perplexity
   results over the same 12,846 scored WikiText-2 tokens, including source-file
   SHA-256 provenance.
+- `raw/gpu_rtx6000_ada_baseline.jsonl`: 290 successful bfloat16/SDPA
+  observations over 29 feasible context/batch points, two measured OOM
+  boundaries, and one adaptive skip.
+- `raw/gpu_rtx6000_ada_quality_hellaswag.jsonl`: full 10,042-example
+  HellaSwag validation accuracy using the ModelScope-hosted source file.
 - Matching `.manifest.json` files: full configurations and invocation history.
 - `processed/*.csv`: p50/p95/p99 aggregates generated from the raw JSONL files.
 - `figures/*.png`: TPS heatmaps and TPOT-throughput frontiers generated from
@@ -42,8 +47,13 @@ Probe, thread-selection, and smoke-test outputs remain under the ignored
   a readable FP32 answer, while W8A8 entered a repeated "question of a
   question" loop. This qualitative check is consistent with the perplexity
   regression and is not treated as a standalone accuracy metric.
+- GPU median throughput peaked at 2,896 TPS for context 128/batch 128, 2,862
+  TPS for context 512/batch 128, 1,444 TPS for context 2048/batch 64, and 716
+  TPS for context 4096/batch 32.
+- GPU OOM was measured at context 2048/batch 128 and context 4096/batch 64.
+- Full HellaSwag accuracy was 42.83%; length-normalized accuracy was 56.88%,
+  with standard errors of 0.49 percentage points for both.
 
-The GPU line is not included because the current environment could not
-communicate with the NVIDIA driver. HellaSwag and ARC-Easy task runs could not
-retrieve their datasets because Hugging Face TLS connections failed; no task
-accuracy numbers are claimed.
+The default execution sandbox hides `/dev/nvidia*`; sandbox-external checks
+confirmed that the host driver and all eight RTX 6000 Ada GPUs are healthy.
+HellaSwag was recovered through ModelScope. ARC-Easy is not yet included.

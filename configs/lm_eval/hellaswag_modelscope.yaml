@@ -1,0 +1,27 @@
+tag:
+  - multiple_choice
+task: hellaswag_modelscope
+dataset_path: json
+dataset_name: null
+dataset_kwargs:
+  data_files:
+    validation: data/modelscope/hellaswag/hellaswag_val.jsonl
+output_type: multiple_choice
+training_split: null
+validation_split: validation
+test_split: null
+process_docs: !function hellaswag_utils.process_docs
+doc_to_text: "{{query}}"
+doc_to_target: "{{label}}"
+doc_to_choice: choices
+metric_list:
+  - metric: acc
+    aggregation: mean
+    higher_is_better: true
+  - metric: acc_norm
+    aggregation: mean
+    higher_is_better: true
+metadata:
+  version: 1.0
+  source: modelscope/hellaswag
+  source_sha256: 0aa3b88843990f3f10a97b9575c94d7b71fb2205240ba04ae4884d9e9c992588
