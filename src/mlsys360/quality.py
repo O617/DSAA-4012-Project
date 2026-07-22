@@ -8,6 +8,30 @@ from typing import Any
 from .model import load_model
 
 
+def perplexity_windows(
+    sequence_length: int, max_length: int, stride: int
+) -> list[tuple[int, int, int, int]]:
+    """Return ``(begin, end, target_length, scored_tokens)`` windows."""
+    if sequence_length < 1:
+        return []
+    if max_length < 2:
+        raise ValueError("max_length must be at least 2 for causal scoring")
+    if stride < 1 or stride > max_length:
+        raise ValueError(f"stride must be between 1 and {max_length}, got {stride}")
+
+    windows = []
+    previous_end = 0
+    for begin in range(0, sequence_length, stride):
+        end = min(begin + max_length, sequence_length)
+        target_length = end - previous_end
+        scored_tokens = max(target_length - 1, 0) if begin == 0 else target_length
+        windows.append((begin, end, target_length, scored_tokens))
+        previous_end = end
+        if end == sequence_length:
+            break
+    return windows
+
+
 def evaluate_perplexity(
     config: dict[str, Any],
     quantization: str,
@@ -29,21 +53,16 @@ def evaluate_perplexity(
     )
     negative_log_likelihoods = []
     token_count = 0
-    previous_end = 0
-    for begin in range(0, tokens.size(1), stride):
-        end = min(begin + max_length, tokens.size(1))
-        target_length = end - previous_end
+    for begin, end, target_length, predicted in perplexity_windows(
+        tokens.size(1), max_length, stride
+    ):
         input_ids = tokens[:, begin:end]
         labels = input_ids.clone()
         labels[:, :-target_length] = -100
         with torch.inference_mode():
             output = bundle.model(input_ids, labels=labels)
-        predicted = max(target_length - 1, 0)
         negative_log_likelihoods.append(float(output.loss) * predicted)
         token_count += predicted
-        previous_end = end
-        if end == tokens.size(1):
-            break
     if token_count == 0:
         raise RuntimeError("Quality dataset produced no scorable tokens")
     mean_nll = sum(negative_log_likelihoods) / token_count

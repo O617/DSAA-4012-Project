@@ -1,6 +1,6 @@
 import unittest
 
-from mlsys360.results import aggregate_rows, batching_knee
+from mlsys360.results import aggregate_rows, batching_knee, result_identity
 
 
 def row(batch, repetition, tps, ttft, tpot):
@@ -41,7 +41,26 @@ class ResultTests(unittest.TestCase):
         self.assertEqual(knee["batch_size"], 2)
         self.assertAlmostEqual(knee["marginal_tps_gain"], 0.05)
 
+    def test_resume_identity_includes_material_runtime_settings(self):
+        first = row(1, 0, 10, 1.0, 0.1)
+        first.update(
+            model_id="model",
+            model_revision="a",
+            compile=False,
+            seed=1,
+            num_threads=4,
+            num_interop_threads=1,
+            cpu_affinity="0-3",
+        )
+        second = dict(first, model_revision="b")
+        third = dict(first, compile=True)
+        fourth = dict(first, seed=2)
+        fifth = dict(first, num_threads=8)
+        self.assertNotEqual(result_identity(first), result_identity(second))
+        self.assertNotEqual(result_identity(first), result_identity(third))
+        self.assertNotEqual(result_identity(first), result_identity(fourth))
+        self.assertNotEqual(result_identity(first), result_identity(fifth))
+
 
 if __name__ == "__main__":
     unittest.main()
-

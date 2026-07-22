@@ -21,7 +21,8 @@ class ConfigTests(unittest.TestCase):
             root = Path(directory)
             (root / "base.yaml").write_text(
                 "model: {model_id: test}\nruntime: {device: cpu}\n"
-                "workload: {output_tokens: 4}\noutput: {path: x.jsonl}\n",
+                "workload: {context_lengths: [8], batch_sizes: [1], output_tokens: 4}\n"
+                "output: {path: x.jsonl}\n",
                 encoding="utf-8",
             )
             (root / "child.yaml").write_text(
@@ -32,6 +33,29 @@ class ConfigTests(unittest.TestCase):
             validate_config(config)
             self.assertEqual(config["runtime"], {"device": "cpu", "dtype": "float32"})
             self.assertEqual(config["workload"]["output_tokens"], 8)
+
+    @unittest.skipIf(yaml is None, "PyYAML is installed with the project dependencies")
+    def test_circular_inheritance_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "a.yaml").write_text("extends: b.yaml\n", encoding="utf-8")
+            (root / "b.yaml").write_text("extends: a.yaml\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Circular configuration inheritance"):
+                load_config(root / "a.yaml")
+
+    def test_invalid_workload_is_rejected(self):
+        config = {
+            "model": {"model_id": "test"},
+            "runtime": {"device": "cpu"},
+            "workload": {
+                "context_lengths": [0],
+                "batch_sizes": [1],
+                "output_tokens": 4,
+            },
+            "output": {"path": "x.jsonl"},
+        }
+        with self.assertRaisesRegex(ValueError, "must be positive"):
+            validate_config(config)
 
 
 if __name__ == "__main__":

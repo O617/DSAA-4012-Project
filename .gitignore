@@ -31,8 +31,13 @@ checkpoints/
 *.onnx
 *.ort
 
-# Generated experiment outputs
-results/raw/
+# Generated experiment outputs. Keep only curated, submission-grade raw runs.
+results/raw/*
+!results/raw/.gitkeep
+!results/raw/cpu_epyc9654_baseline.jsonl
+!results/raw/cpu_epyc9654_baseline.jsonl.manifest.json
+!results/raw/cpu_epyc9654_operator_eager.jsonl
+!results/raw/cpu_epyc9654_operator_eager.jsonl.manifest.json
 results/intermediate/
 logs/
 profiles/
@@ -50,4 +55,3 @@ output/
 
 # Keep directory placeholders when added later
 !.gitkeep
-

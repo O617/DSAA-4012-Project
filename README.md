@@ -11,9 +11,21 @@ are documented in [docs/RESULT_SCHEMA.md](docs/RESULT_SCHEMA.md).
 
 ## Repository status
 
-The runnable benchmark foundation is implemented. No performance numbers are
-included yet: hardware runs, backend verification, and interpretation must be
-performed on the target CPU and RTX 6000 Ada machines.
+The runnable benchmark foundation and the fixed CPU baseline are implemented.
+Committed results include 200 baseline observations and 50 eager-attention
+observations from one AMD EPYC 9654 socket. The GPU, cache, quantization, and
+quality stages remain in progress; the current environment could not
+communicate with the NVIDIA driver.
+
+Headline CPU observations so far:
+
+- no batching knee was observed through batch 16 at contexts 128 and 512;
+- the frozen rule identified batch 16 as the knee at context 2048 and batch 8
+  at context 4096;
+- eager attention at context 4096, batch 4 had 7.95x the TTFT and 5.67x the
+  TPOT of SDPA, with 0.18x its aggregate TPS.
+
+See [results/README.md](results/README.md) for the curated artifacts.
 
 ## 1. Transfer and install
 
@@ -40,6 +52,15 @@ a CUDA-specific wheel. Record the resulting wheel, CUDA, and driver versions.
 The model revision is pinned in `configs/baseline.yaml`; all derived
 configurations inherit it. Model weights and datasets download into the normal
 external caches and are not committed.
+
+To use an already downloaded model directory, override the model ID and clear
+the remote revision:
+
+```bash
+python scripts/smoke_test.py --config configs/cpu.yaml \
+  --set model.model_id=/path/to/SmolLM2-360M \
+  --set model.revision=null
+```
 
 ## 2. Validate the environment
 
@@ -86,6 +107,15 @@ python scripts/run_baseline_grid.py --config configs/cpu.yaml
 python scripts/run_baseline_grid.py --config configs/gpu_rtx6000_ada.yaml
 ```
 
+The committed EPYC 9654 CPU run used:
+
+```bash
+taskset -c 0-95 python scripts/run_baseline_grid.py \
+  --config configs/cpu_epyc9654.yaml \
+  --set model.model_id=/data/main/hanxiao/SmolLM2-360M \
+  --set model.revision=null
+```
+
 Run the serving interventions on each desired device by overriding the runtime
 and output path:
 
@@ -105,8 +135,10 @@ python scripts/run_quantization_study.py \
 
 For CPU, use `runtime.device=cpu`, `runtime.dtype=float32`, and distinct output
 paths. Unsupported attention/quantization configurations and OOM boundaries are
-written to the JSONL file with their error type. Successful repetitions resume
-without duplication when a command is restarted.
+written to the JSONL file with their error type. Points skipped above an OOM
+batch boundary are also recorded. Successful repetitions resume without
+duplication when a command is restarted, while manifest invocation history is
+preserved.
 
 The manual greedy loop always produces the requested number of tokens even if
 EOS is selected. Tokenization, prompt construction, and terminal output are

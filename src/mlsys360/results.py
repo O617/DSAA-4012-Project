@@ -12,14 +12,21 @@ from .timing import summarize
 IDENTITY_FIELDS = (
     "experiment",
     "hardware_id",
+    "model_id",
+    "model_revision",
     "device",
     "dtype",
+    "num_threads",
+    "num_interop_threads",
+    "cpu_affinity",
     "attention",
     "use_cache",
+    "compile",
     "quantization",
     "context_length",
     "batch_size",
     "output_tokens",
+    "seed",
     "repetition",
 )
 
@@ -85,6 +92,8 @@ def batching_knee(aggregates: Iterable[dict[str, Any]], threshold: float = 0.10)
     ordered = sorted(aggregates, key=lambda row: int(row["batch_size"]))
     for previous, current in zip(ordered, ordered[1:]):
         previous_tps = float(previous["tps_p50"])
+        if previous_tps <= 0:
+            continue
         gain = float(current["tps_p50"]) / previous_tps - 1.0
         latency_grew = (
             float(current["ttft_seconds_p95"]) > float(previous["ttft_seconds_p95"])
@@ -93,4 +102,3 @@ def batching_knee(aggregates: Iterable[dict[str, Any]], threshold: float = 0.10)
         if gain < threshold and latency_grew:
             return {"batch_size": current["batch_size"], "marginal_tps_gain": gain}
     return None
-

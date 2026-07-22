@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from .quantization import quantize_model
@@ -47,17 +48,19 @@ def load_model(config: dict[str, Any], quantization: str = "none") -> ModelBundl
 
     dtype = resolve_dtype(str(runtime.get("dtype", "float32")))
     attention = str(runtime.get("attention", "sdpa"))
+    requested_revision = model_cfg.get("revision", "main")
     common = {
-        "revision": model_cfg.get("revision", "main"),
         "trust_remote_code": bool(model_cfg.get("trust_remote_code", False)),
     }
+    if requested_revision is not None:
+        common["revision"] = requested_revision
     tokenizer = AutoTokenizer.from_pretrained(model_cfg["model_id"], **common)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
 
     model = AutoModelForCausalLM.from_pretrained(
         model_cfg["model_id"],
-        torch_dtype=dtype,
+        dtype=dtype,
         attn_implementation=attention,
         **common,
     )
@@ -70,7 +73,8 @@ def load_model(config: dict[str, Any], quantization: str = "none") -> ModelBundl
     cfg = model.config
     metadata = {
         "model_id": model_cfg["model_id"],
-        "requested_revision": common["revision"],
+        "model_source": "local" if Path(model_cfg["model_id"]).exists() else "huggingface",
+        "requested_revision": requested_revision,
         "resolved_revision": getattr(cfg, "_commit_hash", None),
         "architecture": list(getattr(cfg, "architectures", []) or []),
         "num_hidden_layers": getattr(cfg, "num_hidden_layers", None),

@@ -5,6 +5,7 @@ from __future__ import annotations
 import gc
 import importlib.metadata
 import json
+import os
 import platform
 import random
 import subprocess
@@ -17,7 +18,7 @@ from .config import validate_config
 from .decode import fixed_work_decode
 from .model import load_model
 from .prompts import exact_length_prompt
-from .results import JsonlStore, aggregate_rows, batching_knee, result_identity
+from .results import IDENTITY_FIELDS, JsonlStore, aggregate_rows, batching_knee, result_identity
 
 
 def _software_versions() -> dict[str, str | None]:
@@ -43,6 +44,33 @@ def _git_state() -> dict[str, Any]:
         return {"revision": revision, "dirty": dirty}
     except (FileNotFoundError, subprocess.SubprocessError):
         return {"revision": None, "dirty": None}
+
+
+def _write_manifest(path: Path, config: dict[str, Any]) -> None:
+    entry = {
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "config": config,
+        "software": _software_versions(),
+        "git": _git_state(),
+    }
+    invocations: list[dict[str, Any]] = []
+    if path.exists():
+        try:
+            previous = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as error:
+            raise ValueError(f"Invalid experiment manifest: {path}") from error
+        if not isinstance(previous, dict):
+            raise ValueError(f"Experiment manifest must contain a JSON object: {path}")
+        if isinstance(previous.get("invocations"), list):
+            invocations.extend(previous["invocations"])
+        elif "config" in previous:
+            invocations.append(
+                {key: previous.get(key) for key in ("created_at", "config", "software", "git")}
+            )
+    payload = {"schema_version": 1, **entry, "invocations": [*invocations, entry]}
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.replace(path)
 
 
 def workload_points(workload: dict[str, Any]) -> Iterator[dict[str, Any]]:
@@ -76,19 +104,42 @@ def _hardware_id(device: str) -> str:
     return f"{platform.node()}::{platform.processor() or platform.machine()}"
 
 
+def _cpu_affinity() -> str | None:
+    if not hasattr(os, "sched_getaffinity"):
+        return None
+    cpus = sorted(os.sched_getaffinity(0))
+    ranges: list[str] = []
+    start = previous = cpus[0]
+    for cpu in cpus[1:]:
+        if cpu == previous + 1:
+            previous = cpu
+            continue
+        ranges.append(str(start) if start == previous else f"{start}-{previous}")
+        start = previous = cpu
+    ranges.append(str(start) if start == previous else f"{start}-{previous}")
+    return ",".join(ranges)
+
+
 def _base_row(
     config: dict[str, Any], variant: dict[str, Any], point: dict[str, Any], repetition: int
 ) -> dict[str, Any]:
     runtime = config["runtime"]
+    model = config["model"]
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "experiment": config.get("experiment", "benchmark"),
         "hardware_id": _hardware_id(str(runtime["device"])),
+        "model_id": model["model_id"],
+        "model_revision": model.get("revision", "main"),
         "device": runtime["device"],
         "dtype": runtime.get("dtype"),
+        "num_threads": runtime.get("num_threads"),
+        "num_interop_threads": runtime.get("num_interop_threads"),
+        "cpu_affinity": _cpu_affinity(),
         "attention": variant.get("attention", runtime.get("attention", "sdpa")),
         "use_cache": bool(variant.get("use_cache", runtime.get("use_cache", True))),
+        "compile": bool(runtime.get("compile", False)),
         "quantization": variant.get("quantization", "none"),
         "context_length": int(point["context_length"]),
         "batch_size": int(point["batch_size"]),
@@ -104,6 +155,19 @@ def run_experiment(config: dict[str, Any]) -> dict[str, Any]:
     import torch
 
     validate_config(config)
+    runtime = config["runtime"]
+    requested_threads = runtime.get("num_threads")
+    if requested_threads is not None and torch.get_num_threads() != int(requested_threads):
+        torch.set_num_threads(int(requested_threads))
+    requested_interop_threads = runtime.get("num_interop_threads")
+    if (
+        requested_interop_threads is not None
+        and torch.get_num_interop_threads() != int(requested_interop_threads)
+    ):
+        torch.set_num_interop_threads(int(requested_interop_threads))
+    runtime["num_threads"] = torch.get_num_threads()
+    runtime["num_interop_threads"] = torch.get_num_interop_threads()
+
     seed = int(config["workload"].get("seed", 4012))
     random.seed(seed)
     torch.manual_seed(seed)
@@ -112,24 +176,22 @@ def run_experiment(config: dict[str, Any]) -> dict[str, Any]:
 
     store = JsonlStore(config["output"]["path"])
     manifest_path = store.path.with_suffix(store.path.suffix + ".manifest.json")
-    manifest_path.write_text(
-        json.dumps(
-            {
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "config": config,
-                "software": _software_versions(),
-                "git": _git_state(),
-            },
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    _write_manifest(manifest_path, config)
     completed = store.identities() if config["output"].get("resume", True) else set()
     counts = {"completed": 0, "skipped": 0, "failed": 0}
+    points = list(workload_points(config["workload"]))
+    repetition_count = int(config["workload"].get("repetitions", 1))
 
     for variant in variants(config):
+        variant_has_pending_work = any(
+            result_identity(_base_row(config, variant, point, repetition)) not in completed
+            for point in points
+            for repetition in range(repetition_count)
+        )
+        if not variant_has_pending_work:
+            counts["skipped"] += len(points) * repetition_count
+            continue
+
         variant_config = json.loads(json.dumps(config))
         variant_config["runtime"].update(
             {key: value for key, value in variant.items() if key in ("attention", "use_cache")}
@@ -138,7 +200,7 @@ def run_experiment(config: dict[str, Any]) -> dict[str, Any]:
         try:
             bundle = load_model(variant_config, quantization=quantization)
         except Exception as error:
-            for point in workload_points(config["workload"]):
+            for point in points:
                 row = _base_row(config, variant, point, -1)
                 row.update(
                     status="configuration_error",
@@ -149,12 +211,33 @@ def run_experiment(config: dict[str, Any]) -> dict[str, Any]:
                 counts["failed"] += 1
             continue
 
-        blocked_contexts: set[int] = set()
-        for point in workload_points(config["workload"]):
+        oom_batch_limits: dict[int, int] = {}
+        for point in points:
             context_length = int(point["context_length"])
-            if context_length in blocked_contexts:
-                counts["skipped"] += int(config["workload"].get("repetitions", 1))
+            batch_size = int(point["batch_size"])
+            oom_limit = oom_batch_limits.get(context_length)
+            if oom_limit is not None and batch_size >= oom_limit:
+                row = _base_row(config, variant, point, -1)
+                row.update(
+                    status="skipped_after_oom",
+                    error_type="AdaptiveBatchLimit",
+                    error=f"Skipped batch {batch_size} after OOM at batch {oom_limit}",
+                )
+                store.append(row)
+                counts["skipped"] += repetition_count
                 continue
+
+            repetitions = range(repetition_count)
+            pending_repetitions = [
+                repetition
+                for repetition in repetitions
+                if result_identity(_base_row(config, variant, point, repetition)) not in completed
+            ]
+            counts["skipped"] += repetition_count - len(pending_repetitions)
+            if not pending_repetitions:
+                continue
+
+            prompt = None
             try:
                 prompt = exact_length_prompt(
                     bundle.tokenizer,
@@ -172,11 +255,8 @@ def run_experiment(config: dict[str, Any]) -> dict[str, Any]:
                         bool(variant_config["runtime"].get("use_cache", True)),
                     )
 
-                for repetition in range(int(config["workload"].get("repetitions", 1))):
+                for repetition in pending_repetitions:
                     row = _base_row(config, variant, point, repetition)
-                    if result_identity(row) in completed:
-                        counts["skipped"] += 1
-                        continue
                     result = fixed_work_decode(
                         bundle.model,
                         prompt.input_ids,
@@ -202,8 +282,12 @@ def run_experiment(config: dict[str, Any]) -> dict[str, Any]:
                 row.update(status="oom", error_type=type(error).__name__, error=str(error))
                 store.append(row)
                 counts["failed"] += 1
-                blocked_contexts.add(context_length)
-                del prompt
+                previous_limit = oom_batch_limits.get(context_length)
+                oom_batch_limits[context_length] = (
+                    batch_size if previous_limit is None else min(previous_limit, batch_size)
+                )
+                if prompt is not None:
+                    del prompt
                 torch.cuda.empty_cache()
             except Exception as error:
                 row = _base_row(config, variant, point, -1)
@@ -211,10 +295,6 @@ def run_experiment(config: dict[str, Any]) -> dict[str, Any]:
                 store.append(row)
                 counts["failed"] += 1
 
-        try:
-            del prompt
-        except UnboundLocalError:
-            pass
         del bundle
         gc.collect()
         if torch.cuda.is_available():
@@ -223,27 +303,19 @@ def run_experiment(config: dict[str, Any]) -> dict[str, Any]:
     rows = store.read()
     aggregates = aggregate_rows(rows)
     knees: dict[str, Any] = {}
-    knee_groups = {
-        (
-            row["attention"],
-            row["use_cache"],
-            row["quantization"],
-            row["context_length"],
-        )
-        for row in aggregates
-    }
-    for attention, use_cache, quantization, context_length in sorted(
-        knee_groups, key=lambda values: tuple(map(str, values))
-    ):
+    knee_group_fields = tuple(
+        field for field in IDENTITY_FIELDS if field not in ("batch_size", "repetition")
+    )
+    knee_groups = {tuple(row.get(field) for field in knee_group_fields) for row in aggregates}
+    for group in sorted(knee_groups, key=lambda values: tuple(map(str, values))):
         subset = [
             row
             for row in aggregates
-            if row["attention"] == attention
-            and row["use_cache"] == use_cache
-            and row["quantization"] == quantization
-            and row["context_length"] == context_length
+            if tuple(row.get(field) for field in knee_group_fields) == group
         ]
-        key = f"{attention}|cache={use_cache}|{quantization}|context={context_length}"
+        key = "|".join(
+            f"{field}={value}" for field, value in zip(knee_group_fields, group)
+        )
         knees[key] = batching_knee(subset)
     return {**counts, "output": str(store.path), "batching_knees": knees}
 

@@ -14,6 +14,13 @@ LABELS = {
 }
 
 
+def safe_name(values: tuple[object, ...]) -> str:
+    text = "_".join(str(value) for value in values)
+    return "".join(
+        character if character.isalnum() or character in "-_" else "-" for character in text
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("raw", nargs="+", help="One or more benchmark JSONL files")
@@ -29,7 +36,16 @@ def main() -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
     sns.set_theme(style="whitegrid", context="talk")
 
-    group_fields = ["device", "attention", "use_cache", "quantization"]
+    optional_fields = ["model_id", "model_revision", "compile"]
+    group_fields = [
+        "hardware_id",
+        "device",
+        "dtype",
+        "attention",
+        "use_cache",
+        "quantization",
+        *[field for field in optional_fields if field in data.columns],
+    ]
     for identity, subset in data.groupby(group_fields, dropna=False):
         pivot = subset.pivot_table(
             index="context_length", columns="batch_size", values=args.metric, aggfunc="median"
@@ -39,30 +55,33 @@ def main() -> int:
         axis.set_title(" | ".join(map(str, identity)))
         axis.set_xlabel("Batch size")
         axis.set_ylabel("Context length (tokens)")
-        figure_name = "_".join(str(value).replace("/", "-") for value in identity)
+        figure_name = safe_name(identity)
         fig.tight_layout()
         fig.savefig(output_dir / f"{args.metric}_heatmap_{figure_name}.png", dpi=200)
         plt.close(fig)
 
-    summary = data.groupby(["device", "context_length", "batch_size"], as_index=False)[
-        ["tpot_seconds", "tps"]
-    ].median()
-    fig, axis = plt.subplots(figsize=(9, 6))
-    sns.lineplot(
-        data=summary,
-        x="tpot_seconds",
-        y="tps",
-        hue="device",
-        style="context_length",
-        markers=True,
-        ax=axis,
-    )
-    axis.set_xlabel(LABELS["tpot_seconds"])
-    axis.set_ylabel(LABELS["tps"])
-    axis.set_title("TPOT-throughput frontier")
-    fig.tight_layout()
-    fig.savefig(output_dir / "tpot_throughput_frontier.png", dpi=200)
-    plt.close(fig)
+    frontier_groups = list(data.groupby(group_fields, dropna=False))
+    for identity, subset in frontier_groups:
+        summary = subset.groupby(["context_length", "batch_size"], as_index=False)[
+            ["tpot_seconds", "tps"]
+        ].median()
+        fig, axis = plt.subplots(figsize=(9, 6))
+        sns.lineplot(
+            data=summary,
+            x="tpot_seconds",
+            y="tps",
+            hue="context_length",
+            style="context_length",
+            markers=True,
+            ax=axis,
+        )
+        axis.set_xlabel(LABELS["tpot_seconds"])
+        axis.set_ylabel(LABELS["tps"])
+        axis.set_title("TPOT-throughput frontier | " + " | ".join(map(str, identity)))
+        fig.tight_layout()
+        suffix = "" if len(frontier_groups) == 1 else f"_{safe_name(identity)}"
+        fig.savefig(output_dir / f"tpot_throughput_frontier{suffix}.png", dpi=200)
+        plt.close(fig)
     return 0
 
 

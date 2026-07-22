@@ -14,22 +14,32 @@ class RSSMonitor:
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
 
-    def _sample(self) -> None:
+    @staticmethod
+    def _current_rss() -> int:
         import psutil
 
         process = psutil.Process(os.getpid())
+        rss = process.memory_info().rss
+        for child in process.children(recursive=True):
+            try:
+                rss += child.memory_info().rss
+            except (psutil.Error, ProcessLookupError):
+                pass
+        return rss
+
+    def _sample(self) -> None:
+        import psutil
+
         while not self._stop.is_set():
             try:
-                rss = process.memory_info().rss
-                for child in process.children(recursive=True):
-                    rss += child.memory_info().rss
-                self.peak_bytes = max(self.peak_bytes, rss)
+                self.peak_bytes = max(self.peak_bytes, self._current_rss())
             except (psutil.Error, ProcessLookupError):
                 pass
             self._stop.wait(self.interval_seconds)
 
     def __enter__(self) -> "RSSMonitor":
         self._stop.clear()
+        self.peak_bytes = self._current_rss()
         self._thread = threading.Thread(target=self._sample, daemon=True)
         self._thread.start()
         return self

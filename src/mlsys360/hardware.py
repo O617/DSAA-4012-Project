@@ -31,10 +31,13 @@ def inspect_hardware() -> dict[str, Any]:
         "processor": platform.processor(),
         "physical_cores": psutil.cpu_count(logical=False),
         "logical_cores": psutil.cpu_count(logical=True),
+        "cpu_affinity": sorted(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else None,
         "ram_bytes": memory.total,
         "torch": torch.__version__,
         "transformers": transformers.__version__,
         "torch_cuda_build": torch.version.cuda,
+        "torch_num_threads": torch.get_num_threads(),
+        "torch_num_interop_threads": torch.get_num_interop_threads(),
         "environment": {
             name: os.environ.get(name)
             for name in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "CUDA_VISIBLE_DEVICES")
