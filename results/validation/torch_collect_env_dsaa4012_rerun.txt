@@ -1,4 +1,4 @@
-Script started on 2026-07-22 11:28:41+00:00 [<not executed on terminal>]
+Script started on 2026-07-22 13:56:29+00:00 [<not executed on terminal>]
 Collecting environment information...
 PyTorch version: 2.10.0+cu128
 Is debug build: False
@@ -15,8 +15,8 @@ Python version: 3.11.14 (main, Oct 21 2025, 18:31:21) [GCC 11.2.0] (64-bit runti
 Python platform: Linux-5.15.0-181-generic-x86_64-with-glibc2.35
 Is CUDA available: True
 CUDA runtime version: 12.4.99
-CUDA_MODULE_LOADING set to: 
-GPU models and configuration: 
+CUDA_MODULE_LOADING set to:
+GPU models and configuration:
 GPU 0: NVIDIA RTX 6000 Ada Generation
 GPU 1: NVIDIA RTX 6000 Ada Generation
 GPU 2: NVIDIA RTX 6000 Ada Generation
@@ -101,7 +101,7 @@ Versions of relevant libraries:
 [pip3] onnxscript==0.5.7
 [pip3] torch==2.10.0
 [pip3] torch_c_dlpack_ext==0.1.5
-[pip3] torchao==0.17.0
+[pip3] torchao==0.16.0
 [pip3] torchaudio==2.10.0
 [pip3] torchdata==0.11.0
 [pip3] torchvision==0.25.0
@@ -127,7 +127,7 @@ Versions of relevant libraries:
 [conda] nvidia-nvtx-cu12                            12.8.90          pypi_0           pypi
 [conda] torch                                       2.10.0           pypi_0           pypi
 [conda] torch-c-dlpack-ext                          0.1.5            pypi_0           pypi
-[conda] torchao                                     0.17.0           pypi_0           pypi
+[conda] torchao                                     0.16.0           pypi_0           pypi
 [conda] torchaudio                                  2.10.0           pypi_0           pypi
 [conda] torchdata                                   0.11.0           pypi_0           pypi
 [conda] torchvision                                 0.25.0           pypi_0           pypi
@@ -136,4 +136,4 @@ Versions of relevant libraries:
 <frozen runpy>:128: RuntimeWarning: 'torch.utils.collect_env' found in sys.modules after import of package 'torch.utils', but prior to execution of 'torch.utils.collect_env'; this may result in unpredictable behaviour
 
 
-Script done on 2026-07-22 11:28:57+00:00 [COMMAND_EXIT_CODE="0"]
+Script done on 2026-07-22 13:56:45+00:00 [COMMAND_EXIT_CODE="0"]

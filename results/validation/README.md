@@ -9,8 +9,12 @@ conda create -n dsaa4012-rerun --clone baseline -y
 conda run -n dsaa4012-rerun python -m pip uninstall -y \
   mlflow verl opentelemetry-exporter-prometheus
 conda run -n dsaa4012-rerun python -m pip install \
-  'accelerate>=0.34,<2' 'datasets>=2.20,<5' 'torchao>=0.8,<1' 'chardet<6'
+  'accelerate>=0.34,<2' 'datasets>=2.20,<5' 'torchao==0.16.0' 'chardet<6'
 ```
+
+TorchAO 0.16.0 is pinned because it is the official C++-extension match for
+PyTorch 2.10.0. TorchAO 0.17.0 supports PyTorch 2.10 only for Python APIs and
+skips its compiled extensions in this combination.
 
 The removed packages were unrelated to this repository and caused broken
 requirements in the source environment. `pip_check_dsaa4012_rerun.txt` records

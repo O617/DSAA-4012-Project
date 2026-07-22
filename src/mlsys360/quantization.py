@@ -5,6 +5,23 @@ from __future__ import annotations
 from typing import Any
 
 
+def _torchao_quantized_module_info(model: Any) -> list[dict[str, str]]:
+    info = []
+    for name, module in model.named_modules():
+        weight = getattr(module, "weight", None)
+        if weight is None:
+            continue
+        weight_type = type(weight)
+        if weight_type.__module__.startswith("torchao.") or "Quantized" in weight_type.__name__:
+            info.append(
+                {
+                    "name": name,
+                    "weight_type": f"{weight_type.__module__}.{weight_type.__name__}",
+                }
+            )
+    return info
+
+
 def quantize_model(model: Any, mode: str, device: str) -> tuple[Any, dict[str, Any]]:
     if mode in ("none", "", None):
         return model, {"mode": "none", "backend": "native", "modules": []}
@@ -58,7 +75,15 @@ def quantize_model(model: Any, mode: str, device: str) -> tuple[Any, dict[str, A
         raise ValueError(f"Unknown quantization mode: {mode}")
 
     quantize_(model, recipe)
-    modules = [
-        name for name, module in model.named_modules() if "AffineQuantized" in type(module).__name__
-    ]
-    return model, {"mode": mode, "backend": "torchao", "modules": modules}
+    module_info = _torchao_quantized_module_info(model)
+    if not module_info:
+        raise RuntimeError(
+            "TorchAO returned without exposing any quantized weight tensors; "
+            "refusing to label the native model as quantized"
+        )
+    return model, {
+        "mode": mode,
+        "backend": "torchao",
+        "modules": [entry["name"] for entry in module_info],
+        "weight_types": sorted({entry["weight_type"] for entry in module_info}),
+    }
