@@ -1,0 +1,46 @@
+/home/hanxiao/miniconda3/envs/dsaa4012-rerun/lib/python3.11/site-packages/torch/profiler/profiler.py:217: UserWarning: Warning: Profiler clears events at the end of each cycle.Only events from the current cycle will be reported.To keep events across cycles, set acc_events=True.
+  _warn_once(
+
+quantized_modules 225
+weight_types ['torchao.quantization.linear_activation_quantized_tensor.LinearActivationQuantizedTensor']
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------
+                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg    # of Calls
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------
+                              aten::_local_scalar_dense         6.46%      31.067ms        25.94%     124.811ms      13.830us       9.594ms        25.41%       9.595ms       1.063us          9025
+                         Memcpy DtoH (Device -> Pinned)         0.00%       0.000us         0.00%       0.000us       0.000us       9.594ms        25.41%       9.594ms       1.063us          9025
+                                            aten::copy_         3.40%      16.375ms        11.72%      56.420ms      16.892us       8.117ms        21.50%       8.117ms       2.430us          3340
+                                          aten::_int_mm         1.45%       6.993ms         2.24%      10.775ms      47.889us       7.716ms        20.44%       7.716ms      34.294us           225
+                      ampere_igemm_int8_128x128_ldg4_nn         0.00%       0.000us         0.00%       0.000us       0.000us       7.716ms        20.44%       7.716ms      34.447us           224
+void at::native::elementwise_kernel<128, 4, at::nati...         0.00%       0.000us         0.00%       0.000us       0.000us       4.236ms        11.22%       4.236ms      18.825us           225
+                       Memcpy DtoH (Device -> Pageable)         0.00%       0.000us         0.00%       0.000us       0.000us       2.861ms         7.58%       2.861ms       1.064us          2689
+                                              aten::cat         3.00%      14.425ms         5.63%      27.103ms      15.971us       2.731ms         7.23%       2.731ms       1.609us          1697
+                                              aten::mul         2.60%      12.498ms         4.25%      20.453ms      17.159us       2.684ms         7.11%       2.684ms       2.251us          1192
+void at::native::(anonymous namespace)::CatArrayBatc...         0.00%       0.000us         0.00%       0.000us       0.000us       2.396ms         6.35%       2.396ms       1.528us          1568
+void at::native::elementwise_kernel<128, 4, at::nati...         0.00%       0.000us         0.00%       0.000us       0.000us       1.387ms         3.67%       1.387ms       2.161us           642
+                                             aten::amax         0.60%       2.871ms         0.96%       4.623ms      20.545us     996.944us         2.64%     996.944us       4.431us           225
+void at::native::reduce_kernel<512, 1, at::native::R...         0.00%       0.000us         0.00%       0.000us       0.000us     996.944us         2.64%     996.944us       4.431us           225
+                                             aten::amin         1.06%       5.092ms         1.69%       8.135ms      36.156us     996.010us         2.64%     996.010us       4.427us           225
+void at::native::reduce_kernel<512, 1, at::native::R...         0.00%       0.000us         0.00%       0.000us       0.000us     996.010us         2.64%     996.010us       4.427us           225
+void at::native::elementwise_kernel<128, 4, at::nati...         0.00%       0.000us         0.00%       0.000us       0.000us     881.131us         2.33%     881.131us       3.916us           225
+                                              aten::add         0.87%       4.191ms         1.43%       6.888ms      16.479us     738.994us         1.96%     738.994us       1.768us           418
+                                            aten::fill_         0.61%       2.937ms         1.43%       6.890ms      10.208us     660.577us         1.75%     660.577us       0.979us           675
+void at::native::vectorized_elementwise_kernel<4, at...         0.00%       0.000us         0.00%       0.000us       0.000us     660.577us         1.75%     660.577us       0.979us           675
+void at::native::elementwise_kernel<128, 4, at::nati...         0.00%       0.000us         0.00%       0.000us       0.000us     591.022us         1.57%     591.022us       2.045us           289
+                                            aten::clamp         0.94%       4.515ms         1.56%       7.528ms      16.729us     557.700us         1.48%     557.700us       1.239us           450
+void at::native::vectorized_elementwise_kernel<4, at...         0.00%       0.000us         0.00%       0.000us       0.000us     557.700us         1.48%     557.700us       1.239us           450
+                                          aten::maximum         0.68%       3.266ms         1.24%       5.957ms      13.238us     555.082us         1.47%     555.082us       1.234us           450
+void at::native::vectorized_elementwise_kernel<4, at...         0.00%       0.000us         0.00%       0.000us       0.000us     555.082us         1.47%     555.082us       1.234us           450
+void at::native::unrolled_elementwise_kernel<at::nat...         0.00%       0.000us         0.00%       0.000us       0.000us     526.213us         1.39%     526.213us       2.339us           225
+void at::native::unrolled_elementwise_kernel<at::nat...         0.00%       0.000us         0.00%       0.000us       0.000us     410.117us         1.09%     410.117us       6.031us            68
+                                              aten::neg         0.49%       2.340ms         0.86%       4.138ms      14.319us     376.087us         1.00%     376.087us       1.301us           289
+void at::native::(anonymous namespace)::CatArrayBatc...         0.00%       0.000us         0.00%       0.000us       0.000us     332.198us         0.88%     332.198us       2.595us           128
+                                               aten::mm         0.02%     114.454us         0.03%     141.053us     141.053us     296.292us         0.78%     296.292us     296.292us             1
+void cutlass::Kernel2<cutlass_80_simt_sgemm_128x32_8...         0.00%       0.000us         0.00%       0.000us       0.000us     295.844us         0.78%     295.844us     295.844us             1
+                                       aten::reciprocal         0.53%       2.531ms         0.98%       4.740ms      21.066us     288.616us         0.76%     288.616us       1.283us           225
+void at::native::vectorized_elementwise_kernel<4, at...         0.00%       0.000us         0.00%       0.000us       0.000us     288.616us         0.76%     288.616us       1.283us           225
+                                          aten::minimum         0.45%       2.160ms         0.74%       3.583ms      15.924us     283.112us         0.75%     283.112us       1.258us           225
+void at::native::vectorized_elementwise_kernel<4, at...         0.00%       0.000us         0.00%       0.000us       0.000us     283.112us         0.75%     283.112us       1.258us           225
+                                            aten::round         0.41%       1.977ms         0.72%       3.447ms      15.320us     269.984us         0.72%     269.984us       1.200us           225
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------
+Self CPU time total: 481.209ms
+Self CUDA time total: 37.754ms
