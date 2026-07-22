@@ -1,19 +1,18 @@
-Script started on 2026-07-22 13:53:55+00:00 [<not executed on terminal>]
 ============================= test session starts ==============================
 platform linux -- Python 3.11.14, pytest-8.4.2, pluggy-1.6.0
 rootdir: /home/hanxiao/develop/DSAA4012/DSAA-4012-Project
 configfile: pyproject.toml
 testpaths: tests
 plugins: langsmith-0.7.32, hydra-core-1.3.2, typeguard-4.4.4, anyio-4.10.0
-collected 21 items
+collected 22 items
 
-tests/test_config.py ....                                                [ 19%]
-tests/test_decode.py ...                                                 [ 33%]
-tests/test_experiments.py ..                                             [ 42%]
-tests/test_model.py .                                                    [ 47%]
-tests/test_plotting.py .                                                 [ 52%]
-tests/test_quality.py ....                                               [ 71%]
-tests/test_quantization.py ..                                            [ 80%]
+tests/test_config.py ....                                                [ 18%]
+tests/test_decode.py ...                                                 [ 31%]
+tests/test_experiments.py ..                                             [ 40%]
+tests/test_model.py .                                                    [ 45%]
+tests/test_plotting.py .                                                 [ 50%]
+tests/test_quality.py .....                                              [ 72%]
+tests/test_quantization.py ..                                            [ 81%]
 tests/test_results.py ..                                                 [ 90%]
 tests/test_timing.py ..                                                  [100%]
 
@@ -37,7 +36,4 @@ tests/test_quantization.py::QuantizationTests::test_dynamic_cpu_quantization_pre
     convert(model, mapping, inplace=True)
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 21 passed, 2 warnings in 6.01s ========================
-
-
-Script done on 2026-07-22 13:54:07+00:00 [COMMAND_EXIT_CODE="0"]
+======================== 22 passed, 2 warnings in 5.84s ========================

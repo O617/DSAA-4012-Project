@@ -1,8 +1,15 @@
+import hashlib
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from mlsys360.quality import evaluate_perplexity, json_safe, perplexity_windows
+from mlsys360.quality import (
+    evaluate_perplexity,
+    file_provenance,
+    json_safe,
+    perplexity_windows,
+    task_source_provenance,
+)
 
 
 class QualityTests(unittest.TestCase):
@@ -21,6 +28,30 @@ class QualityTests(unittest.TestCase):
         self.assertEqual(
             value["function"],
             "test_quality.QualityTests.test_json_safe_uses_stable_callable_name",
+        )
+
+    def test_task_sources_hash_actual_config_and_split_files(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = root / "task.yaml"
+            split = root / "test.jsonl"
+            config.write_text("task: local\n", encoding="utf-8")
+            split.write_text('{"question": "test"}\n', encoding="utf-8")
+            config_record = file_provenance(config)
+            sources = task_source_provenance(
+                {
+                    "local": {
+                        "metadata": {"config_source": str(config)},
+                        "dataset_kwargs": {"data_files": {"test": str(split)}},
+                    }
+                }
+            )
+        self.assertEqual(sources["local"]["task_config"], config_record)
+        self.assertEqual(
+            sources["local"]["data_files"]["test"]["sha256"],
+            hashlib.sha256(b'{"question": "test"}\n').hexdigest(),
         )
 
     @patch("mlsys360.quality.load_model")
@@ -48,6 +79,10 @@ class QualityTests(unittest.TestCase):
         self.assertEqual(result["evaluated_tokens"], 3)
         self.assertEqual(result["source"]["type"], "local_text_file")
         self.assertEqual(result["source"]["line_count"], 3)
+        self.assertIn("python", result["software"])
+        self.assertIn("torch", result["software"])
+        self.assertIn("datasets", result["software"])
+        self.assertIn("lm_eval", result["software"])
         self.assertEqual(
             result["source"]["sha256"],
             "457098d8c79229c8199e82791bf8d67aa0a37adbd1ab5e3e145a13f9832d5a23",

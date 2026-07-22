@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import gc
-import importlib.metadata
 import json
 import os
 import platform
@@ -18,17 +17,8 @@ from .config import validate_config
 from .decode import fixed_work_decode
 from .model import load_model, local_model_artifact_hashes
 from .prompts import exact_length_prompt
+from .provenance import software_versions
 from .results import IDENTITY_FIELDS, JsonlStore, aggregate_rows, batching_knee, result_identity
-
-
-def _software_versions() -> dict[str, str | None]:
-    versions: dict[str, str | None] = {"python": platform.python_version()}
-    for package in ("torch", "transformers", "accelerate", "datasets", "lm_eval", "torchao"):
-        try:
-            versions[package] = importlib.metadata.version(package)
-        except importlib.metadata.PackageNotFoundError:
-            versions[package] = None
-    return versions
 
 
 def _git_state() -> dict[str, Any]:
@@ -50,7 +40,7 @@ def _write_manifest(path: Path, config: dict[str, Any]) -> None:
     entry = {
         "created_at": datetime.now(timezone.utc).isoformat(),
         "config": config,
-        "software": _software_versions(),
+        "software": software_versions(),
         "git": _git_state(),
         "model_artifacts": local_model_artifact_hashes(str(config["model"]["model_id"])),
     }
@@ -148,7 +138,7 @@ def _base_row(
         "output_tokens": int(config["workload"]["output_tokens"]),
         "repetition": repetition,
         "seed": int(config["workload"].get("seed", 4012)),
-        "software": _software_versions(),
+        "software": software_versions(),
         "logits_to_keep": 1,
     }
 

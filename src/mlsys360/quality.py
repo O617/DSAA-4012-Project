@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .model import load_model
+from .provenance import software_versions
 
 
 def json_safe(value: Any) -> Any:
@@ -25,6 +26,36 @@ def json_safe(value: Any) -> Any:
         name = getattr(value, "__qualname__", type(value).__qualname__)
         return f"{module}.{name}"
     return str(value)
+
+
+def file_provenance(path: str | Path) -> dict[str, Any]:
+    """Hash one local evaluation artifact instead of trusting a label in YAML."""
+    source = Path(path)
+    content = source.read_bytes()
+    return {
+        "path": str(source),
+        "size_bytes": len(content),
+        "sha256": hashlib.sha256(content).hexdigest(),
+    }
+
+
+def task_source_provenance(task_configs: dict[str, Any]) -> dict[str, Any]:
+    """Record actual task-YAML and split-file hashes reported by lm-eval."""
+    provenance: dict[str, Any] = {}
+    for task_name, task_config in task_configs.items():
+        task_files: dict[str, Any] = {"data_files": {}}
+        metadata = task_config.get("metadata", {})
+        config_source = metadata.get("config_source")
+        if config_source and Path(config_source).is_file():
+            task_files["task_config"] = file_provenance(config_source)
+        data_files = task_config.get("dataset_kwargs", {}).get("data_files", {})
+        if isinstance(data_files, str):
+            data_files = {"unspecified": data_files}
+        for split, filename in sorted(data_files.items()):
+            if Path(filename).is_file():
+                task_files["data_files"][str(split)] = file_provenance(filename)
+        provenance[str(task_name)] = task_files
+    return provenance
 
 
 def perplexity_windows(
@@ -115,6 +146,7 @@ def evaluate_perplexity(
         "quantization": quantization,
         "model": bundle.metadata,
         "quantization_details": bundle.quantization,
+        "software": software_versions(),
     }
 
 
@@ -146,6 +178,7 @@ def evaluate_tasks(
         log_samples=log_samples,
         random_seed=4012,
     )
+    task_configs = results.get("configs", {})
     output = {
         "metric": "task_accuracy",
         "tasks": tasks,
@@ -153,10 +186,12 @@ def evaluate_tasks(
         "batch_size": batch_size,
         "quantization": quantization,
         "results": results.get("results", {}),
-        "task_configs": json_safe(results.get("configs", {})),
+        "task_configs": json_safe(task_configs),
+        "task_sources": task_source_provenance(task_configs),
         "task_versions": results.get("versions", {}),
         "model": bundle.metadata,
         "quantization_details": bundle.quantization,
+        "software": software_versions(),
     }
     if log_samples:
         output["samples"] = results.get("samples", {})
