@@ -47,6 +47,27 @@ results/raw/*
 !results/raw/gpu_rtx6000_ada_baseline.jsonl.manifest.json
 !results/raw/gpu_rtx6000_ada_quality_hellaswag.jsonl
 !results/raw/gpu_rtx6000_ada_quality_arc_easy.jsonl
+
+# Corrected last-logit reruns (schema version 3).
+!results/raw/cpu_epyc9654_baseline_last_logits.jsonl
+!results/raw/cpu_epyc9654_baseline_last_logits.jsonl.manifest.json
+!results/raw/gpu_rtx6000_ada_baseline_last_logits.jsonl
+!results/raw/gpu_rtx6000_ada_baseline_last_logits.jsonl.manifest.json
+!results/raw/cpu_epyc9654_operator_last_logits.jsonl
+!results/raw/cpu_epyc9654_operator_last_logits.jsonl.manifest.json
+!results/raw/gpu_rtx6000_ada_operator_last_logits.jsonl
+!results/raw/gpu_rtx6000_ada_operator_last_logits.jsonl.manifest.json
+!results/raw/cpu_epyc9654_cache_off_last_logits.jsonl
+!results/raw/cpu_epyc9654_cache_off_last_logits.jsonl.manifest.json
+!results/raw/gpu_rtx6000_ada_cache_last_logits.jsonl
+!results/raw/gpu_rtx6000_ada_cache_last_logits.jsonl.manifest.json
+!results/raw/cpu_epyc9654_quantization_w8a8_last_logits.jsonl
+!results/raw/cpu_epyc9654_quantization_w8a8_last_logits.jsonl.manifest.json
+!results/raw/gpu_rtx6000_ada_quantization_w8a8_torchao016_last_logits.jsonl
+!results/raw/gpu_rtx6000_ada_quantization_w8a8_torchao016_last_logits.jsonl.manifest.json
+!results/raw/cpu_epyc9654_quality_arc_easy_w8a8_last_logits.jsonl
+!results/raw/gpu_rtx6000_ada_headline_rotated_last_logits.jsonl
+!results/raw/gpu_rtx6000_ada_headline_rotated_last_logits.jsonl.manifest.json
 logs/
 profiles/
 traces/

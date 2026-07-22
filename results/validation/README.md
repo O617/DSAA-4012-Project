@@ -24,3 +24,17 @@ that the isolated target environment has no broken requirements.
 expected to report a dirty worktree because it verifies the correction before
 the correction commit. Headline-run manifests must report a clean worktree and
 the subsequent corrected commit.
+
+`gpu_torchao016_profile.txt` verifies that the accelerator W8A8 probe executes
+`aten::_int_mm` and Ampere INT8 GEMM kernels. It also records the thousands of
+device-to-host scalar transfers that explain why this correct kernel path is
+not a practical optimization in the tested eager TorchAO recipe.
+
+`gpu_attention_profile.txt` verifies the requested attention backends at
+context 4096/batch 4. Eager uses explicit `bmm` and softmax, while SDPA invokes
+`aten::_flash_attention_forward` and `pytorch_flash::flash_fwd_kernel`.
+
+`gpu_headline_telemetry.csv` contains one idle/pre-block sample and one sample
+after each of ten alternating-order headline blocks. The 200 observations were
+collected at clean revision `773adcb`; all invocation manifests report a clean
+worktree.

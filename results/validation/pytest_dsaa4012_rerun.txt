@@ -36,4 +36,4 @@ tests/test_quantization.py::QuantizationTests::test_dynamic_cpu_quantization_pre
     convert(model, mapping, inplace=True)
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 22 passed, 2 warnings in 5.84s ========================
+======================== 22 passed, 2 warnings in 5.89s ========================

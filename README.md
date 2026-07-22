@@ -9,40 +9,45 @@ The experiment design and acceptance criteria are in
 [PROJECT_PLAN.md](PROJECT_PLAN.md). The raw-result fields and timing boundaries
 are documented in [docs/RESULT_SCHEMA.md](docs/RESULT_SCHEMA.md).
 
-> **Rerun required before final reporting:** the current performance runs
-> materialize full-sequence prefill logits. Follow
-> [docs/CORRECTION_AND_RERUN_CHECKLIST.md](docs/CORRECTION_AND_RERUN_CHECKLIST.md)
-> to correct the benchmark, preserve the diagnostic records, and collect the
-> submission-grade replacement results.
+The last-logit correction and CPU/RTX 6000 Ada rerun are complete. Earlier
+performance records remain as explicitly labeled `full_logits_prefill`
+diagnostics; submission-grade files contain `_last_logits` and use schema
+version 3. The completed audit is in
+[docs/CORRECTION_AND_RERUN_CHECKLIST.md](docs/CORRECTION_AND_RERUN_CHECKLIST.md).
 
 ## Repository status
 
-The runnable benchmark foundation and fixed CPU studies are implemented.
-Curated results cover the CPU baseline and interventions, the RTX 6000 Ada GPU
-baseline, WikiText-2 perplexity, and full HellaSwag and ARC-Easy accuracy. The
-default tool sandbox does not expose `/dev/nvidia*`, but sandbox-external runs
-verified that the host driver and all eight GPUs are healthy.
+The runnable benchmark, corrected CPU/GPU baseline surfaces, attention and
+cache interventions, CPU W8A8 performance/quality study, GPU kernel probes,
+and reproducible figures are complete. GPU runs were executed outside the
+default device-hiding sandbox; the hardware report confirms all eight RTX 6000
+Ada devices and the active driver.
 
 Headline observations so far:
 
-- no batching knee was observed through batch 16 at contexts 128 and 512;
-- the frozen rule identified batch 16 as the knee at context 2048 and batch 8
-  at context 4096;
-- eager attention at context 4096, batch 4 had 7.95x the TTFT and 5.67x the
-  TPOT of SDPA, with 0.18x its aggregate TPS.
-- disabling the KV cache increased median TPOT by 2.50x--23.07x across the five
-  repeated points; the 2048/8 boundary observation was 75.15x slower;
-- CPU dynamic W8A8 improved median aggregate TPS by 1.47x--2.54x at four
-  representative points, but peak RSS increased by 1.09x--1.56x;
+- CPU has no batching knee through batch 16 at contexts 128/512; the frozen
+  rule identifies batch 16 at context 2048 and batch 8 at context 4096;
+- GPU reaches 2,974, 2,948, 2,701, and 1,438 median TPS at contexts 128, 512,
+  2048, and 4096 (batch 128). Only context 4096 reaches a knee at batch 128;
+- the former GPU OOM points now succeed, proving they were caused by
+  full-sequence logits rather than a serving-representative memory boundary;
+- eager/SDPA TTFT at context 4096, batch 4 is 6.23x on CPU and 9.34x on GPU;
+  profiling verifies SDPA executes the CUDA FlashAttention kernel;
+- CPU cache-off median TPOT is 1.85x--17.62x cache-on at five repeated points;
+  the single 2048/8 boundary is 88.99x slower. On GPU, cache-off is slightly
+  faster at small loads and becomes 4.22x slower only at 2048/8;
+- CPU dynamic W8A8 improves median TPS by 1.27x--2.49x, while peak RSS is
+  1.16x--1.66x higher;
 - on the frozen WikiText-2 slice, FP32 perplexity was 11.27 and W8A8
-  perplexity was 44.16, so this quantization recipe is not quality-preserving.
-- the GPU baseline produced 290 successful observations; OOM occurred at
-  context 2048/batch 128 and context 4096/batch 64, after which the larger
-  4096/batch 128 point was skipped;
-- median GPU throughput peaked at 2,896 TPS for context 128/batch 128 and 716
-  TPS for context 4096/batch 32;
+  perplexity was 44.16, so this quantization recipe is not quality-preserving;
+- full ARC-Easy W8A8 accuracy is 42.21% versus 56.44% native (normalized:
+  38.97% versus 49.12%);
+- GPU TorchAO runs real Ampere INT8 GEMMs but suffers thousands of
+  device-to-host scalar synchronizations and is retained as a negative probe;
+- 100-repetition GPU headline runs support p99 TTFT of 44.67 ms at 128/1 and
+  6.923 s at 4096/128;
 - full HellaSwag validation accuracy was 42.83%, or 56.88% with the standard
-  length normalization (10,042 examples; standard error about 0.49 points).
+  length normalization (10,042 examples; standard error about 0.49 points);
 - full ARC-Easy test accuracy was 56.44%, or 49.12% with the standard length
   normalization (2,376 examples; standard error about 1.02 points).
 
@@ -224,18 +229,20 @@ tasks or a frozen, seeded subset whose size and uncertainty are reported.
 ## 5. Aggregate and plot
 
 ```bash
-python scripts/aggregate_results.py results/raw/gpu_rtx6000_ada_baseline.jsonl \
-  --output results/processed/gpu_baseline.csv
+python scripts/aggregate_results.py \
+  results/raw/gpu_rtx6000_ada_baseline_last_logits.jsonl \
+  --output results/processed/gpu_rtx6000_ada_baseline_last_logits.csv
 
 python scripts/make_plots.py \
-  results/raw/cpu_baseline.jsonl \
-  results/raw/gpu_rtx6000_ada_baseline.jsonl \
-  --output-dir results/figures --metric tps
+  results/raw/cpu_epyc9654_baseline_last_logits.jsonl \
+  results/raw/gpu_rtx6000_ada_baseline_last_logits.jsonl \
+  --output-dir results/figures/corrected_baseline --metric tps
 ```
 
 Aggregation reports p50, p95, and p99 across individual repetitions. Plotting
-generates context-by-batch heatmaps and a TPOT-throughput frontier directly from
-raw JSONL files.
+generates context-by-batch heatmaps and a TPOT-throughput frontier directly
+from raw JSONL files. Broad-grid p99 values have only ten repetitions and are
+descriptive; stable tail claims use the 100-repetition headline file.
 
 ## 6. Tests
 

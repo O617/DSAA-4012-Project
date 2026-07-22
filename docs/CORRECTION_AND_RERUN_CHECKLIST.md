@@ -5,7 +5,7 @@ P0 items before treating any benchmark result as submission-grade.
 
 ## Why a rerun is required
 
-The current manual decode loop calls `LlamaForCausalLM` without limiting the
+The previous manual decode loop called `LlamaForCausalLM` without limiting the
 number of returned logits. During prefill this materializes a
 `[batch, context, vocabulary]` tensor even though greedy generation needs only
 the final position. With vocabulary size 49,152 and BF16, both failed GPU
@@ -36,7 +36,7 @@ therefore overstates the cost of disabling the KV cache.
   `[batch, 1, vocabulary]` for both cache modes.
 - [x] Run `pytest` and `ruff` in the exact target environment and save their
   complete outputs under `results/validation/`.
-- [ ] Commit the correction before collecting headline data. Every final
+- [x] Commit the correction before collecting headline data. Every final
   manifest must report `git.dirty: false` and the corrected commit hash.
 
 ## Status of existing results
@@ -56,12 +56,13 @@ do not mix affected rows with corrected aggregates.
 | WikiText-2 FP32/W8A8 perplexity | Unaffected by this bug | Retain after provenance checks |
 | FP32 HellaSwag/ARC-Easy | Unaffected by this bug | Retain after provenance checks |
 
-- [ ] Move superseded performance JSONL/CSV/figures to a clearly named
+- [x] Move superseded performance JSONL/CSV/figures to a clearly named
   `results/intermediate/full_logits_runs/` directory or label them with an
-  explicit `full_logits_prefill` limitation.
-- [ ] Generate corrected raw files under new names; never append corrected
+  explicit `full_logits_prefill` limitation. The legacy generation remains in
+  place and is explicitly labeled in `results/README.md`.
+- [x] Generate corrected raw files under new names; never append corrected
   observations to the old JSONL files.
-- [ ] Update `results/README.md` only after regenerated CSV values are checked
+- [x] Update `results/README.md` only after regenerated CSV values are checked
   against the raw observations.
 
 ## P0 — environment and model provenance
@@ -81,24 +82,24 @@ do not mix affected rows with corrected aggregates.
 - [x] Run hardware inspection outside any sandbox that hides `/dev/nvidia*`.
 - [x] Record GPU name, UUID, driver, CUDA runtime, total/free memory, ECC,
   power limit, clocks, temperature, active processes, and CPU affinity.
-- [ ] Bind CPU experiments to the same socket/NUMA node and thread counts used
+- [x] Bind CPU experiments to the same socket/NUMA node and thread counts used
   by the validated EPYC configuration.
-- [ ] Confirm no competing GPU processes and record idle device memory before
+- [x] Confirm no competing GPU processes and record idle device memory before
   each experiment family.
 
 ## P0 — corrected baseline reruns
 
-- [ ] CPU baseline: contexts `128, 512, 2048, 4096`; batches
+- [x] CPU baseline: contexts `128, 512, 2048, 4096`; batches
   `1, 2, 4, 8, 16`; 64 output tokens; 2 warmups; 10 broad-grid repetitions.
-- [ ] GPU baseline: the same core grid plus batches `32, 64, 128` until the
+- [x] GPU baseline: the same core grid plus batches `32, 64, 128` until the
   corrected knee or a genuine memory boundary is reached.
-- [ ] Run memory-boundary candidates in fresh processes so allocator residue
+- [x] Run memory-boundary candidates in fresh processes so allocator residue
   or fragmentation from a previous point cannot determine the boundary.
-- [ ] Compare observed GPU peak memory with analytical weight and KV-cache
+- [x] Compare observed GPU peak memory with analytical weight and KV-cache
   sizes. Investigate any unexplained multi-GiB difference.
-- [ ] Verify every successful row has exactly 64 output tokens, 63 decode
+- [x] Verify every successful row has exactly 64 output tokens, 63 decode
   intervals, a stable prompt hash, and the resolved SDPA backend.
-- [ ] Recompute p50/p95/p99 CSV files and all baseline figures only from
+- [x] Recompute p50/p95/p99 CSV files and all baseline figures only from
   corrected raw rows.
 
 Suggested smoke run before the full grid:
@@ -113,60 +114,65 @@ python scripts/run_baseline_grid.py \
   --set output.path=results/validation/gpu_last_logits_smoke.jsonl
 ```
 
-## P1 — intervention studies still required
+## P1 — completed intervention studies
 
-- [ ] CPU attention: rerun eager versus SDPA at all five representative points.
-- [ ] GPU attention: compare eager and SDPA; add FlashAttention-2 only after
-  verifying that the kernel executes without fallback.
-- [ ] CPU cache: rerun the five repeated cache-off points; keep the 2048/8
+- [x] CPU attention: rerun eager versus SDPA at all five representative points.
+- [x] GPU attention: compare eager and SDPA; add FlashAttention-2 only after
+  verifying that the kernel executes without fallback. The installed PyTorch
+  SDPA path was profiled and uses its CUDA FlashAttention kernel; the separate
+  `flash_attention_2` Transformers backend was not installed and is excluded.
+- [x] CPU cache: rerun the five repeated cache-off points; keep the 2048/8
   point single-observation-only unless enough repetitions are practical.
-- [ ] GPU cache: run cache on/off at contexts `128, 512, 2048`, batches `1, 8`.
-- [ ] CPU W8A8: rerun the four performance points with `lm_head` excluded and
+- [x] GPU cache: run cache on/off at contexts `128, 512, 2048`, batches `1, 8`.
+- [x] CPU W8A8: rerun the four performance points with `lm_head` excluded and
   record the exact quantized module list.
-- [ ] GPU W8A8: either produce a verified TorchAO kernel path or retain a
+- [x] GPU W8A8: either produce a verified TorchAO kernel path or retain a
   structured unsupported/failure result with the exact error and versions.
-- [ ] Measure W8A8 resident memory in a fresh process; do not infer model-size
+  TorchAO 0.16 executes Ampere INT8 GEMMs, but thousands of scalar device-host
+  synchronizations make it non-competitive; it remains a negative probe.
+- [x] Measure W8A8 resident memory in a fresh process; do not infer model-size
   reduction from in-process peak RSS alone.
 
 ## P1 — quality evaluation gaps
 
-- [ ] Retain the paired FP32/W8A8 WikiText-2 run after verifying the local model
+- [x] Retain the paired FP32/W8A8 WikiText-2 run after verifying the local model
   hashes and source-file SHA-256.
-- [ ] Run at least one full multiple-choice task on the CPU W8A8 artifact; the
+- [x] Run at least one full multiple-choice task on the CPU W8A8 artifact; the
   current HellaSwag and ARC-Easy records evaluate native precision only.
-- [ ] Record `lm-eval`, `datasets`, PyTorch, Transformers, and quantization
+- [x] Record `lm-eval`, `datasets`, PyTorch, Transformers, and quantization
   backend versions in every quality result.
-- [ ] Preserve task YAML, dataset split, sample count, source hashes, batch
+- [x] Preserve task YAML, dataset split, sample count, source hashes, batch
   size, random seed, accuracy, normalized accuracy, and standard errors.
-- [ ] Do not describe W8A8 as quality-preserving: current perplexity changed
+- [x] Do not describe W8A8 as quality-preserving: current perplexity changed
   from 11.27 to 44.16 unless a corrected recipe produces contrary evidence.
 
 ## P1 — headline statistics and interpretation
 
-- [ ] Select a small set of headline configurations and collect 100–200
+- [x] Select a small set of headline configurations and collect 100–200
   repetitions before emphasizing p99. Ten repetitions are acceptable for the
   broad grid but do not support a stable p99 claim.
-- [ ] Randomize or rotate headline configuration order and monitor thermal and
+- [x] Randomize or rotate headline configuration order and monitor thermal and
   power drift.
-- [ ] Apply the frozen batching-knee definition mechanically and state when no
+- [x] Apply the frozen batching-knee definition mechanically and state when no
   knee occurs within the feasible range.
-- [ ] Analyze CPU and GPU independently; use normalized trends rather than an
+- [x] Analyze CPU and GPU independently; use normalized trends rather than an
   absolute cross-platform fairness claim.
-- [ ] Keep negative results, OOM points, fallbacks, and single-observation
+- [x] Keep negative results, OOM points, fallbacks, and single-observation
   boundaries visibly labeled.
-- [ ] Do not attribute a speedup to SDPA, INT8, or caching until the executed
+- [x] Do not attribute a speedup to SDPA, INT8, or caching until the executed
   backend and relevant kernels have been verified.
 
 ## Final acceptance gate
 
-- [ ] Corrected code is committed and the worktree is clean.
-- [ ] Full `pytest` and `ruff` logs are committed.
-- [ ] CPU and GPU hardware reports are committed.
-- [ ] Model and dataset hashes are committed.
-- [ ] Corrected raw JSONL files and manifests are committed.
-- [ ] Processed CSV files reproduce from raw rows without manual edits.
-- [ ] Figures reproduce from the committed plotting command.
-- [ ] `README.md` and `results/README.md` contain only conclusions supported by
+- [x] Corrected code is committed and the worktree is clean after the final
+  results commit.
+- [x] Full `pytest` and `ruff` logs are committed.
+- [x] CPU and GPU hardware reports are committed.
+- [x] Model and dataset hashes are committed.
+- [x] Corrected raw JSONL files and manifests are committed.
+- [x] Processed CSV files reproduce from raw rows without manual edits.
+- [x] Figures reproduce from the committed plotting command.
+- [x] `README.md` and `results/README.md` contain only conclusions supported by
   corrected or explicitly unaffected results.
-- [ ] Report limitations distinguish model-only synchronous benchmarking from
+- [x] Report limitations distinguish model-only synchronous benchmarking from
   production request scheduling and network-level serving.

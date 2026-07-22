@@ -1,0 +1,20 @@
+Corrected result audit
+cpu_epyc9654_baseline_last_logits.jsonl rows=200 statuses={'ok': 200} schemas={3: 200}
+cpu_epyc9654_cache_off_last_logits.jsonl rows=51 statuses={'ok': 51} schemas={3: 51}
+cpu_epyc9654_operator_last_logits.jsonl rows=100 statuses={'ok': 100} schemas={3: 100}
+cpu_epyc9654_quality_arc_easy_w8a8_last_logits.jsonl rows=1 statuses={'quality': 1} schemas={'quality': 1}
+cpu_epyc9654_quantization_w8a8_last_logits.jsonl rows=40 statuses={'ok': 40} schemas={3: 40}
+gpu_rtx6000_ada_baseline_last_logits.jsonl rows=320 statuses={'ok': 320} schemas={3: 320}
+gpu_rtx6000_ada_cache_last_logits.jsonl rows=120 statuses={'ok': 120} schemas={3: 120}
+gpu_rtx6000_ada_headline_rotated_last_logits.jsonl rows=200 statuses={'ok': 200} schemas={3: 200}
+gpu_rtx6000_ada_operator_last_logits.jsonl rows=100 statuses={'ok': 100} schemas={3: 100}
+gpu_rtx6000_ada_quantization_w8a8_torchao016_last_logits.jsonl rows=1 statuses={'ok': 1} schemas={3: 1}
+cpu_epyc9654_baseline_last_logits.jsonl.manifest.json invocations=1 dirty=[False] revisions=['e547d5a']
+cpu_epyc9654_cache_off_last_logits.jsonl.manifest.json invocations=2 dirty=[False] revisions=['a66370e']
+cpu_epyc9654_operator_last_logits.jsonl.manifest.json invocations=1 dirty=[False] revisions=['77baab5']
+cpu_epyc9654_quantization_w8a8_last_logits.jsonl.manifest.json invocations=1 dirty=[False] revisions=['a66370e']
+gpu_rtx6000_ada_baseline_last_logits.jsonl.manifest.json invocations=9 dirty=[False] revisions=['e547d5a']
+gpu_rtx6000_ada_cache_last_logits.jsonl.manifest.json invocations=1 dirty=[False] revisions=['e547d5a']
+gpu_rtx6000_ada_headline_rotated_last_logits.jsonl.manifest.json invocations=10 dirty=[False] revisions=['773adcb']
+gpu_rtx6000_ada_operator_last_logits.jsonl.manifest.json invocations=1 dirty=[False] revisions=['e547d5a']
+gpu_rtx6000_ada_quantization_w8a8_torchao016_last_logits.jsonl.manifest.json invocations=1 dirty=[False] revisions=['77baab5']
