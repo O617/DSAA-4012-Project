@@ -81,6 +81,11 @@ output/
 *.log
 *.out
 *.toc
+report/rendered/
+slides/rendered/
+*_montage.png
+*.pptx.inspect.ndjson
+~$*.pptx
 
 # Keep directory placeholders when added later
 !.gitkeep
