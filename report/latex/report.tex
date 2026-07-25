@@ -10,12 +10,18 @@
 \usepackage{cite}
 \usepackage[hidelinks]{hyperref}
 \usepackage{microtype}
+\Urlmuskip=0mu plus 1mu\relax
 
 \graphicspath{{../../results/figures/corrected_baseline/}}
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 \newcommand{\tps}{\mathrm{TPS}}
 \newcommand{\ttft}{\mathrm{TTFT}}
 \newcommand{\tpot}{\mathrm{TPOT}}
+\setlength{\parindent}{1em}
+\setlength{\parskip}{0pt}
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\dbltextfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\intextsep}{8pt plus 2pt minus 2pt}
 
 \title{Workload-Shaped Serving Optimization for\\
 SmolLM2-360M on CPU and RTX 6000 Ada}
@@ -191,15 +197,17 @@ batch 128. The other contexts still scale within the tested range. The
 
 \begin{figure*}[t]
   \centering
-  \begin{minipage}[t]{0.49\textwidth}
+  \begin{minipage}[t]{0.48\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{tps_heatmap_HKUSTQLAB-6000ADA_cpu_float32_sdpa_cache-on_none_SmolLM2-360M.png}\\[-1mm]
-    \footnotesize (a) CPU FP32, batches 1--16
+    \includegraphics[height=4.0cm,keepaspectratio]{tps_heatmap_HKUSTQLAB-6000ADA_cpu_float32_sdpa_cache-on_none_SmolLM2-360M.png}
+    \par\vspace{0.5mm}
+    {\footnotesize (a) CPU FP32, batches 1--16}
   \end{minipage}\hfill
-  \begin{minipage}[t]{0.49\textwidth}
+  \begin{minipage}[t]{0.48\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{tps_heatmap_HKUSTQLAB-6000ADA_cuda_bfloat16_sdpa_cache-on_none_SmolLM2-360M.png}\\[-1mm]
-    \footnotesize (b) RTX 6000 Ada BF16, batches 1--128
+    \includegraphics[height=4.0cm,keepaspectratio]{tps_heatmap_HKUSTQLAB-6000ADA_cuda_bfloat16_sdpa_cache-on_none_SmolLM2-360M.png}
+    \par\vspace{0.5mm}
+    {\footnotesize (b) RTX 6000 Ada BF16, batches 1--128}
   \end{minipage}
   \caption{Corrected median decode-throughput surfaces. Long context moves
   the CPU knee to smaller batches, whereas the GPU continues to gain
